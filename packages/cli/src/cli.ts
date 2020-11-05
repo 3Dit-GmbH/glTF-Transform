@@ -6,7 +6,7 @@ import { gzip } from 'node-gzip';
 import { program } from '@caporal/core';
 import { Logger, NodeIO, PropertyType, VertexLayout } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { AOOptions, CenterOptions, InstanceOptions, PartitionOptions, PruneOptions, QUANTIZE_DEFAULTS, ResampleOptions, SequenceOptions, UnweldOptions, WeldOptions, ao, center, dedup, instance, metalRough, partition, prune, quantize, resample, sequence, tangents, unweld, weld } from '@gltf-transform/lib';
+import { AOOptions, CenterOptions, RotateOptions, InstanceOptions, PartitionOptions, PruneOptions, QUANTIZE_DEFAULTS, ResampleOptions, SequenceOptions, UnweldOptions, WeldOptions, ao, center, dedup, rotate, instance, metalRough, partition, prune, quantize, resample, sequence, tangents, unweld, weld } from '@gltf-transform/lib';
 import { InspectFormat, inspect } from './inspect';
 import { DRACO_DEFAULTS, DracoCLIOptions, ETC1S_DEFAULTS, Filter, Mode, UASTC_DEFAULTS, draco, merge, toktx, unlit } from './transforms';
 import { Session, formatBytes } from './util';
@@ -290,6 +290,29 @@ attached a surface, like a ceiling fan, the pivot may be located above instead.
 	.action(({args, options, logger}) =>
 		Session.create(io, logger, args.input, args.output)
 			.transform(center({...options} as CenterOptions))
+	);
+
+// ROTATE
+program
+	.command('rotate', 'Rotates the scene along euler angles')
+	.help('Rotates the scene along euler angles.')
+	.argument('<input>', INPUT_DESC)
+	.argument('<output>', OUTPUT_DESC)
+	.option('--yaw <yaw>', 'Yaw angle, rotation around base z axis', {
+		validator: program.NUMBER,
+		default: 0,
+	})
+	.option('--pitch <pitch>', 'Pitch angle, rotation around new x axis', {
+		validator: program.NUMBER,
+		default: 0,
+	})
+	.option('--roll <roll>', 'Roll angle, rotation around new z axis', {
+		validator: program.NUMBER,
+		default: 0,
+	})
+	.action(({args, options, logger}) => 
+		Session.create(io, logger, args.input, args.output)
+			.transform(rotate({euler: [options.yaw, options.pitch, options.roll]} as RotateOptions))
 	);
 
 // INSTANCE
