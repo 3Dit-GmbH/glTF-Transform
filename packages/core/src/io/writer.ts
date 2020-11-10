@@ -4,7 +4,7 @@ import { Link } from '../graph';
 import { JSONDocument } from '../json-document';
 import { Accessor, AnimationSampler, AttributeLink, Camera, IndexLink, Material, Property } from '../properties';
 import { GLTF } from '../types/gltf';
-import { BufferUtils, Logger, MathUtils } from '../utils';
+import { BufferUtils, Logger } from '../utils';
 import { UniqueURIGenerator, WriterContext } from './writer-context';
 
 const BufferViewTarget = {
@@ -23,7 +23,7 @@ export interface WriterOptions {
 	logger?: Logger;
 	basename?: string;
 	isGLB?: boolean;
-	vertexLayout?: VertexLayout,
+	vertexLayout?: VertexLayout;
 	dependencies?: {[key: string]: unknown};
 }
 
@@ -578,18 +578,9 @@ export class GLTFWriter {
 
 		json.nodes = root.listNodes().map((node, index) => {
 			const nodeDef = context.createPropertyDef(node) as GLTF.INode;
-
-			if (!MathUtils.eq(node.getTranslation(), [0, 0, 0])) {
-				nodeDef.translation = node.getTranslation();
-			}
-
-			if (!MathUtils.eq(node.getRotation(), [0, 0, 0, 1])) {
-				nodeDef.rotation = node.getRotation();
-			}
-
-			if (!MathUtils.eq(node.getScale(), [1, 1, 1])) {
-				nodeDef.scale = node.getScale();
-			}
+			nodeDef.translation = Array.from(node.getTranslation());
+			nodeDef.rotation = Array.from(node.getRotation());
+			nodeDef.scale = Array.from(node.getScale());
 
 			if (node.getWeights().length) {
 				nodeDef.weights = node.getWeights();
