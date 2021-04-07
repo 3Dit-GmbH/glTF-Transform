@@ -47,9 +47,7 @@
   ],
   "gitHead": "1ebf68281c043a7bf76b9d1075c6f2913fe2e996",
   "pkg": {
-    "assets": [
-      "vendor/**"
-    ]
+    "assets": ["vendor/**"]
   },
   "devDependencies": {
     "tmp": "^0.2.1"
