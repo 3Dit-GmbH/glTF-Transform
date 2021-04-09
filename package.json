@@ -60,6 +60,7 @@
     "scripts": [],
     "assets": [
       "node_modules/gl-matrix/**/*.*",
+      "node_modules/gl/**/webgl.node",
       "node_modules/draco3dgltf/draco_decoder_gltf.wasm",
       "node_modules/draco3dgltf/draco_encoder.wasm"
     ]
