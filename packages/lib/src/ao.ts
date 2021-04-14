@@ -1,10 +1,8 @@
-import * as geoaoNamespace from 'geo-ambient-occlusion';
-import * as reglNamespace from 'regl';
-import { Document, GLTF, Primitive, Transform } from '@gltf-transform/core';
+import geoao from 'geo-ambient-occlusion';
+import REGL from 'regl';
+import { Accessor, Document, Primitive, Transform } from '@gltf-transform/core';
 
 const NAME = 'ao';
-const geoao = geoaoNamespace['default'] as Function;
-const REGL = reglNamespace['default'] as Function;
 
 interface GLFactory {
 	(w: number, h: number): WebGLRenderingContext;
@@ -32,7 +30,8 @@ const TEXTURE_DATA = new Uint8Array([
 
 /**
  * Options:
- * - **gl**: Callback taking `(width, height)` as parameters, and returning a GL instance. Optional on web; Requires `headless-gl` in Node.js.
+ * - **gl**: Callback taking `(width, height)` as parameters, and returning a GL instance. Optional
+ * 		on web; Requires `headless-gl` in Node.js.
  * - **resolution**: Resolution of depth buffer. Default: 512.
  * - **samples**: Number of samples to draw. Default: 500.
  */
@@ -42,7 +41,8 @@ export function ao (options: AOOptions = DEFAULT_OPTIONS): Transform {
 	return (doc: Document): void => {
 
 		const logger = doc.getLogger();
-		const {resolution, samples} = options;
+		const resolution = options.resolution as number;
+		const samples = options.samples as number;
 
 		logger.debug(`${NAME}: resolution = ${resolution}; samples = ${samples}`);
 
@@ -76,7 +76,9 @@ export function ao (options: AOOptions = DEFAULT_OPTIONS): Transform {
 
 			if (primitive.getMaterial().getOcclusionTexture()) {
 				// TODO: Duplicate the material if needed.
-				logger.warn(`${NAME}: Primitive already has AO. Is it sharing a material? Skipping.`);
+				logger.warn(
+					`${NAME}: Primitive already has AO. Is it sharing a material? Skipping.`
+				);
 				return;
 			}
 
@@ -98,7 +100,7 @@ export function ao (options: AOOptions = DEFAULT_OPTIONS): Transform {
 			const buffer = doc.getRoot().listBuffers()[0] || doc.createBuffer('');
 			const uv2 = doc.createAccessor('uv2', buffer)
 			.setArray(uv2Data)
-			.setType(GLTF.AccessorType.VEC2);
+			.setType(Accessor.Type.VEC2);
 
 			primitive.setAttribute('TEXCOORD_1', uv2);
 			if (!primitive.getAttribute['TEXCOORD_0']) {

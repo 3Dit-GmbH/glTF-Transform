@@ -1,7 +1,7 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
-import { Document, NodeIO, TextureInfo } from '../../';
+import test from 'tape';
+import { Document, JSONDocument, NodeIO, TextureInfo } from '../../';
 
 test('@gltf-transform/core::texture | read', t => {
 	const jsonDoc = {
@@ -31,7 +31,7 @@ test('@gltf-transform/core::texture | read', t => {
 	};
 
 	const io = new NodeIO();
-	const doc = io.readJSON(jsonDoc);
+	const doc = io.readJSON(jsonDoc as unknown as JSONDocument);
 	const root = doc.getRoot();
 	const mat1 = root.listMaterials()[0];
 	const mat2 = root.listMaterials()[1];
@@ -63,7 +63,7 @@ test('@gltf-transform/core::texture | write', t => {
 	doc.createMaterial('mat2')
 		.setBaseColorTexture(texture1)
 		.getBaseColorTextureInfo()
-		.setWrapS(TextureInfo.TextureWrapMode.CLAMP_TO_EDGE);
+		.setWrapS(TextureInfo.WrapMode.CLAMP_TO_EDGE);
 
 	const io = new NodeIO();
 	const jsonDoc = io.writeJSON(doc, {basename: 'basename', isGLB: false});
@@ -101,8 +101,36 @@ test('@gltf-transform/core::texture | extras', t => {
 	const writerOptions = {isGLB: false, basename: 'test'};
 	const doc2 = io.readJSON(io.writeJSON(doc, writerOptions));
 
-	t.deepEqual(doc.getRoot().listTextures()[0].getExtras(), {foo: 1, bar: 2}, 'stores extras');
-	t.deepEqual(doc2.getRoot().listTextures()[0].getExtras(), {foo: 1, bar: 2}, 'roundtrips extras');
+	t.deepEqual(doc.getRoot().listTextures()[0].getExtras(), {foo: 1, bar: 2}, 'storage');
+	t.deepEqual(doc2.getRoot().listTextures()[0].getExtras(), {foo: 1, bar: 2}, 'roundtrip');
 
+	t.end();
+});
+
+test('@gltf-transform/core::texture | padding', t => {
+	// Ensure that buffer views are padded to 4-byte boundaries. See:
+	// https://github.com/KhronosGroup/glTF/issues/1935
+
+	const doc = new Document();
+	doc.createBuffer();
+	doc.createTexture().setImage(new ArrayBuffer(17)).setMimeType('image/png');
+	doc.createTexture().setImage(new ArrayBuffer(21)).setMimeType('image/png');
+	doc.createTexture().setImage(new ArrayBuffer(20)).setMimeType('image/png');
+
+	const jsonDoc = new NodeIO().writeJSON(doc, {isGLB: true, basename: 'test'});
+
+	t.deepEqual(jsonDoc.json.images, [
+		{bufferView: 0, mimeType: 'image/png'},
+		{bufferView: 1, mimeType: 'image/png'},
+		{bufferView: 2, mimeType: 'image/png'},
+	], 'images');
+	t.deepEqual(jsonDoc.json.bufferViews, [
+		{buffer: 0, byteOffset: 0, byteLength: 17},
+		{buffer: 0, byteOffset: 20, byteLength: 21},
+		{buffer: 0, byteOffset: 44, byteLength: 20},
+	], 'bufferViews');
+	t.deepEqual(jsonDoc.json.buffers, [
+		{byteLength: 64}
+	], 'buffers');
 	t.end();
 });

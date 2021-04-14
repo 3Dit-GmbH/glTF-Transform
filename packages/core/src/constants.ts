@@ -73,7 +73,7 @@ export const GLB_BUFFER = '@glb.bin';
 export type TypedArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int16Array | Int8Array;
 
 /**
- * Abstraction representing any one of the typed array constructors supported by glTF and JavaScript.
+ * Abstraction representing the typed array constructors supported by glTF and JavaScript.
  * @hidden
  */
 export type TypedArrayConstructor = Float32ArrayConstructor | Uint32ArrayConstructor | Uint16ArrayConstructor | Uint8ArrayConstructor | Int16ArrayConstructor | Int8ArrayConstructor;
@@ -96,4 +96,19 @@ export enum PropertyType {
 	SKIN = 'Skin',
 	TEXTURE = 'Texture',
 	TEXTURE_INFO = 'TextureInfo',
+}
+
+/** Vertex layout method. */
+export enum VertexLayout {
+	/**
+	 * Stores vertex attributes in a single buffer view per mesh primitive. Interleaving vertex
+	 * data may improve performance by reducing page-thrashing in GPU memory.
+	 */
+	INTERLEAVED = 'interleaved',
+
+	/**
+	 * Stores each vertex attribute in a separate buffer view. May decrease performance by causing
+	 * page-thrashing in GPU memory. Some 3D engines may prefer this layout, e.g. for simplicity.
+	 */
+	SEPARATE = 'separate',
 }

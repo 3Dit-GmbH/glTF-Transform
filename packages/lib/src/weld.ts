@@ -1,9 +1,9 @@
-import { Accessor, Document, Logger, Primitive, PrimitiveTarget, Transform, TypedArray } from '@gltf-transform/core';
+import { Accessor, Document, Primitive, PrimitiveTarget, Transform, TypedArray } from '@gltf-transform/core';
 import { getGLPrimitiveCount } from './utils';
 
 const NAME = 'weld';
 
-export interface WeldOptions {tolerance: number}
+export interface WeldOptions {tolerance?: number}
 
 const DEFAULT_OPTIONS: WeldOptions = {tolerance: 1e-4};
 
@@ -15,6 +15,8 @@ export function weld (options: WeldOptions = DEFAULT_OPTIONS): Transform {
 	options = {...DEFAULT_OPTIONS, ...options};
 
 	return (doc: Document): void => {
+		const logger = doc.getLogger();
+
 		for (const mesh of doc.getRoot().listMeshes()) {
 			for (const prim of mesh.listPrimitives()) {
 				if (options.tolerance === 0) {
@@ -24,6 +26,8 @@ export function weld (options: WeldOptions = DEFAULT_OPTIONS): Transform {
 				}
 			}
 		}
+
+		logger.debug(`${NAME}: Complete.`);
 	};
 }
 
@@ -44,7 +48,7 @@ function weldOnly (doc: Document, prim: Primitive): void {
  * attributes are not considered when scoring vertex similarity, but are retained when merging.
  */
 function weldAndMerge (doc: Document, prim: Primitive, options: WeldOptions): void {
-	const tolerance = Math.max(options.tolerance, Number.EPSILON);
+	const tolerance = Math.max(options.tolerance as number, Number.EPSILON);
 	const decimalShift = Math.log10(1 / tolerance);
 	const shiftFactor = Math.pow(10, decimalShift);
 
@@ -98,7 +102,7 @@ function weldAndMerge (doc: Document, prim: Primitive, options: WeldOptions): vo
 
 	const srcVertexCount = prim.getAttribute('POSITION').getCount();
 	const dstVertexCount = dstAttributes.get(prim.getAttribute('POSITION')).length;
-	doc.getLogger().debug(`${NAME}: ${srcVertexCount} → ${dstVertexCount} vertices.`)
+	doc.getLogger().debug(`${NAME}: ${srcVertexCount} → ${dstVertexCount} vertices.`);
 
 	// Update the primitive.
 	for (const srcAttr of prim.listAttributes()) {

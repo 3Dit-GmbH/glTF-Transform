@@ -1,7 +1,7 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
-import { Accessor, Document, GLTF, NodeIO } from '../../';
+import test from 'tape';
+import { Accessor, Document, GLTF, NodeIO, Primitive, Property, VertexLayout } from '../../';
 
 test('@gltf-transform/core::mesh', t => {
 	const doc = new Document();
@@ -24,16 +24,16 @@ test('@gltf-transform/core::mesh | primitive', t => {
 	const acc2 = doc.createAccessor('acc2');
 	const acc3 = doc.createAccessor('acc3');
 
-	const toType = (p) => p.propertyType;
+	const toType = (p: Property): string => p.propertyType;
 
 	prim.setAttribute('POSITION', acc1);
 	t.equals(prim.getAttribute('POSITION'), acc1, 'sets POSITION');
-	t.deepEqual(acc1.listParents().map(toType), ['Root', 'Primitive'], 'links POSITION')
+	t.deepEqual(acc1.listParents().map(toType), ['Root', 'Primitive'], 'links POSITION');
 
 	prim.setAttribute('NORMAL', acc2);
 	t.equals(prim.getAttribute('NORMAL'), acc2, 'sets NORMAL');
-	t.deepEqual(acc1.listParents().map(toType), ['Root', 'Primitive'], 'links NORMAL')
-	t.deepEqual(acc2.listParents().map(toType), ['Root', 'Primitive'], 'links NORMAL')
+	t.deepEqual(acc1.listParents().map(toType), ['Root', 'Primitive'], 'links NORMAL');
+	t.deepEqual(acc2.listParents().map(toType), ['Root', 'Primitive'], 'links NORMAL');
 
 	prim.setAttribute('POSITION', acc3);
 	t.equals(prim.getAttribute('POSITION'), acc3, 'overwrites POSITION');
@@ -70,11 +70,23 @@ test('@gltf-transform/core::mesh | primitive targets', t => {
 
 	mesh.addPrimitive(prim);
 
-	const toType = (p) => p.propertyType;
+	const toType = (p: Property): string => p.propertyType;
 
-	t.deepEqual(acc1.listParents().map(toType), ['Root', 'PrimitiveTarget'], 'links target attributes');
-	t.deepEqual(acc2.listParents().map(toType), ['Root', 'PrimitiveTarget'], 'links target attributes');
-	t.deepEqual(acc3.listParents().map(toType), ['Root', 'PrimitiveTarget'], 'links target attributes');
+	t.deepEqual(
+		acc1.listParents().map(toType),
+		['Root', 'PrimitiveTarget'],
+		'links target attributes'
+	);
+	t.deepEqual(
+		acc2.listParents().map(toType),
+		['Root', 'PrimitiveTarget'],
+		'links target attributes'
+	);
+	t.deepEqual(
+		acc3.listParents().map(toType),
+		['Root', 'PrimitiveTarget'],
+		'links target attributes'
+	);
 
 	t.deepEqual(prim.listTargets(), [trg1, trg2, trg3], 'links targets');
 	t.deepEqual(trg1.listParents().map(toType), ['Primitive'], 'links targets');
@@ -85,7 +97,11 @@ test('@gltf-transform/core::mesh | primitive targets', t => {
 	const meshDef = jsonDoc.json.meshes[0];
 
 	t.deepEquals(meshDef.extras.targetNames, ['trg1', 'trg2', 'trg3'], 'writes target names');
-	t.deepEquals(meshDef.primitives[0].targets, [{POSITION: 0}, {POSITION: 1}, {POSITION: 2}], 'writes target accessors');
+	t.deepEquals(
+		meshDef.primitives[0].targets,
+		[{POSITION: 0}, {POSITION: 1}, {POSITION: 2}],
+		'writes target accessors'
+	);
 
 	t.end();
 });
@@ -131,12 +147,50 @@ test('@gltf-transform/core::mesh | extras', t => {
 	const doc2 = io.readJSON(io.writeJSON(doc, writerOptions));
 
 	t.deepEqual(doc.getRoot().listMeshes()[0].getExtras(), {foo: 1, bar: 2}, 'stores mesh extras');
-	t.deepEqual(doc2.getRoot().listMeshes()[0].getExtras(), {foo: 1, bar: 2}, 'roundtrips mesh extras');
+	t.deepEqual(
+		doc2.getRoot().listMeshes()[0].getExtras(),
+		{foo: 1, bar: 2},
+		'roundtrips mesh extras'
+	);
 
 	const prim = doc.getRoot().listMeshes()[0].listPrimitives()[0];
 	const prim2 = doc2.getRoot().listMeshes()[0].listPrimitives()[0];
 	t.deepEqual(prim.getExtras(), {baz: 3}, 'stores prim extras');
 	t.deepEqual(prim2.getExtras(), {baz: 3}, 'roundtrips prim extras');
+
+	t.end();
+});
+
+test('@gltf-transform/core::mesh | empty i/o', t => {
+	// Technically meshes must have primitives for the file to be valid, but we'll test that
+	// reading/writing works anyway.
+
+	const doc = new Document();
+	doc.createMesh('EmptyMesh').setWeights([1, 0, 0, 0]);
+
+	const io = new NodeIO();
+	let rtDoc = io.readJSON(io.writeJSON(doc, {}));
+	let rtMesh = rtDoc.getRoot().listMeshes()[0];
+
+	t.deepEquals(rtMesh.listPrimitives(), [],  'primitives');
+	t.deepEquals(rtMesh.getName(), 'EmptyMesh',  'name');
+	t.deepEquals(rtMesh.getWeights(), [1, 0, 0, 0], 'weights');
+
+	rtDoc = io.readJSON({
+		json: {
+			asset: {version: '2.0'},
+			meshes: [{
+				name: 'EmptyMesh.2',
+				weights: [0, 0, 1, 0]
+			} as unknown as GLTF.IMesh]
+		},
+		resources: {}
+	});
+	rtMesh = rtDoc.getRoot().listMeshes()[0];
+
+	t.deepEquals(rtMesh.listPrimitives(), [],  'primitives');
+	t.deepEquals(rtMesh.getName(), 'EmptyMesh.2',  'name');
+	t.deepEquals(rtMesh.getWeights(), [0, 0, 1, 0], 'weights');
 
 	t.end();
 });
@@ -147,7 +201,7 @@ test('@gltf-transform/core::mesh | primitive i/o', t => {
 	const buffer = doc.createBuffer();
 
 	prim
-		.setMode(GLTF.MeshPrimitiveMode.POINTS)
+		.setMode(Primitive.Mode.POINTS)
 		.setAttribute('POSITION', doc.createAccessor()
 			.setArray(new Float32Array([0, 0, 0]))
 			.setType(Accessor.Type.VEC3)
@@ -179,11 +233,86 @@ test('@gltf-transform/core::mesh | primitive i/o', t => {
 	const rtDoc = io.readBinary(io.writeBinary(doc));
 	const rtPrim = rtDoc.getRoot().listMeshes()[0].listPrimitives()[0];
 
-	t.deepEquals(rtPrim.getAttribute('POSITION').getArray(), new Float32Array([0, 0, 0]),  'float32');
-	t.deepEquals(rtPrim.getAttribute('COLOR_0').getArray(), new Uint8Array([128, 128, 128]), 'uint8');
-	t.deepEquals(rtPrim.getAttribute('COLOR_1').getArray(), new Uint16Array([64, 64, 64]), 'uint16');
-	t.deepEquals(rtPrim.getAttribute('COLOR_2').getArray(), new Uint32Array([32, 32, 32]), 'uint32');
-	t.deepEquals(rtPrim.getAttribute('COLOR_3').getArray(), new Int16Array([16, 16, 16]), 'int8');
-	t.deepEquals(rtPrim.getAttribute('COLOR_4').getArray(), new Int8Array([8, 8, 8]), 'int8');
+	t.deepEquals(
+		rtPrim.getAttribute('POSITION').getArray(),
+		new Float32Array([0, 0, 0]),
+		'float32'
+	);
+	t.deepEquals(
+		rtPrim.getAttribute('COLOR_0').getArray(),
+		new Uint8Array([128, 128, 128]),
+		'uint8'
+	);
+	t.deepEquals(
+		rtPrim.getAttribute('COLOR_1').getArray(),
+		new Uint16Array([64, 64, 64]),
+		'uint16'
+	);
+	t.deepEquals(
+		rtPrim.getAttribute('COLOR_2').getArray(),
+		new Uint32Array([32, 32, 32]),
+		'uint32'
+	);
+	t.deepEquals(
+		rtPrim.getAttribute('COLOR_3').getArray(),
+		new Int16Array([16, 16, 16]),
+		'int8'
+	);
+	t.deepEquals(
+		rtPrim.getAttribute('COLOR_4').getArray(),
+		new Int8Array([8, 8, 8]),
+		'int8'
+	);
+	t.end();
+});
+
+test('@gltf-transform/core::mesh | primitive vertex layout', t => {
+	const doc = new Document();
+	const prim = doc.createPrimitive();
+	const buffer = doc.createBuffer();
+
+	prim
+		.setMode(Primitive.Mode.POINTS)
+		.setAttribute('POSITION', doc.createAccessor()
+			.setArray(new Float32Array([0, 0, 0]))
+			.setType(Accessor.Type.VEC3)
+			.setBuffer(buffer))
+		.setAttribute('COLOR_0', doc.createAccessor()
+			.setArray(new Uint8Array([128, 128, 128]))
+			.setType(Accessor.Type.VEC3)
+			.setBuffer(buffer))
+		.setAttribute('COLOR_1', doc.createAccessor()
+			.setArray(new Uint16Array([64, 64, 64]))
+			.setType(Accessor.Type.VEC3)
+			.setBuffer(buffer))
+		.setAttribute('COLOR_2', doc.createAccessor()
+			.setArray(new Uint32Array([32, 32, 32]))
+			.setType(Accessor.Type.VEC3)
+			.setBuffer(buffer));
+
+	doc.createMesh().addPrimitive(prim);
+
+	const io = new NodeIO();
+
+	io.setVertexLayout(VertexLayout.INTERLEAVED);
+	const interleavedJSON = io.binaryToJSON(io.writeBinary(doc));
+	t.deepEquals(
+		interleavedJSON.json.bufferViews,
+		[{buffer: 0, target: 34962, byteOffset: 0, byteLength: 36, byteStride: 36}],
+		'interleaved buffer byte length'
+	);
+
+	io.setVertexLayout(VertexLayout.SEPARATE);
+	const separateJSON = io.binaryToJSON(io.writeBinary(doc));
+	t.deepEquals(
+		separateJSON.json.bufferViews,
+		[
+			{buffer: 0, target: 34962, byteOffset: 0, byteLength: 12, byteStride: 12},
+			{buffer: 0, target: 34962, byteOffset: 12, byteLength: 4, byteStride: 4},
+			{buffer: 0, target: 34962, byteOffset: 16, byteLength: 8, byteStride: 8},
+			{buffer: 0, target: 34962, byteOffset: 24, byteLength: 12, byteStride: 12},
+		],
+		'separate buffer byte length'
+	);
 	t.end();
 });

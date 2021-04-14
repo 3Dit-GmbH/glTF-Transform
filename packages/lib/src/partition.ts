@@ -12,7 +12,7 @@ const DEFAULT_OPTIONS: PartitionOptions =  {
 	meshes: true,
 };
 
-const partition = (options: PartitionOptions): Transform => {
+const partition = (options: PartitionOptions = DEFAULT_OPTIONS): Transform => {
 
 	options = {...DEFAULT_OPTIONS, ...options};
 
@@ -29,7 +29,7 @@ const partition = (options: PartitionOptions): Transform => {
 		logger.debug(`${NAME}: Complete.`);
 	};
 
-}
+};
 
 function partitionMeshes (doc: Document, logger: Logger, options: PartitionOptions): void {
 	const existingURIs = new Set<string>(doc.getRoot().listBuffers().map((b) => b.getURI()));
@@ -37,7 +37,9 @@ function partitionMeshes (doc: Document, logger: Logger, options: PartitionOptio
 	doc.getRoot().listMeshes()
 		.forEach((mesh, meshIndex) => {
 			if (Array.isArray(options.meshes) && !options.meshes.includes(mesh.getName())) {
-				logger.debug(`${NAME}: Skipping mesh at index ${meshIndex} with name "${mesh.getName()}".`);
+				logger.debug(
+					`${NAME}: Skipping mesh #${meshIndex} with name "${mesh.getName()}".`
+				);
 				return;
 			}
 
@@ -55,7 +57,7 @@ function partitionMeshes (doc: Document, logger: Logger, options: PartitionOptio
 						.forEach((primTarget) => {
 							primTarget.listAttributes()
 								.forEach((attribute) => attribute.setBuffer(buffer));
-						})
+						});
 				});
 		});
 }
@@ -66,7 +68,9 @@ function partitionAnimations (doc: Document, logger: Logger, options: PartitionO
 	doc.getRoot().listAnimations()
 		.forEach((anim, animIndex) => {
 			if (Array.isArray(options.animations) && !options.animations.includes(anim.getName())) {
-				logger.debug(`${NAME}: Skipping animation at index ${animIndex} with name "${anim.getName()}".`);
+				logger.debug(
+					`${NAME}: Skipping animation #${animIndex} with name "${anim.getName()}".`
+				);
 				return;
 			}
 

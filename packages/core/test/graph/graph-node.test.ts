@@ -1,6 +1,6 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
+import test from 'tape';
 import { Graph, Property } from '../../';
 
 /**
@@ -12,13 +12,13 @@ class TestNode extends Property {
 	constructor(graph) {
 		super(graph);
 	}
-	addNode(node) {
+	addNode(node): this {
 		return this.addGraphChild(this.nodes, this.graph.link('node', this, node));
 	}
-	removeNode(node) {
+	removeNode(node): this {
 		return this.removeGraphChild(this.nodes, node);
 	}
-	listNodes() {
+	listNodes(): Property[] {
 		return this.nodes.map((link) => link.getChild());
 	}
 }

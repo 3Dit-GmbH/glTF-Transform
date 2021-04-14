@@ -1,6 +1,6 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
+import test from 'tape';
 import { Document, Property } from '../../';
 
 const toType = (p: Property): string => p.propertyType;
@@ -14,7 +14,11 @@ test('@gltf-transform/core::primitive-target', t => {
 
 	t.equals(prim1.getAttribute('POSITION'), acc1, 'sets POSITION');
 	t.equals(prim2.getAttribute('POSITION'), acc1, 'sets POSITION');
-	t.deepEqual(acc1.listParents().map(toType), ['Root', 'PrimitiveTarget', 'PrimitiveTarget'], 'links POSITION');
+	t.deepEqual(
+		acc1.listParents().map(toType),
+		['Root', 'PrimitiveTarget', 'PrimitiveTarget'],
+		'links POSITION'
+	);
 
 	prim1.setAttribute('POSITION', null);
 	t.equals(prim1.getAttribute('POSITION'), null, 'unsets POSITION');

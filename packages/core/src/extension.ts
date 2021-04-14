@@ -60,6 +60,10 @@ export abstract class Extension implements ExtensionPropertyParent {
 		}
 	}
 
+	/** Performs first-time setup for the extension. Must be idempotent. */
+	// eslint-disable-next-line @typescript-eslint/no-empty-function
+	public static register(): void {}
+
 	/**
 	 * Indicates to the client whether it is OK to load the asset when this extension is not
 	 * recognized. Optional extensions are generally preferred, if there is not a good reason
@@ -113,8 +117,7 @@ export abstract class Extension implements ExtensionPropertyParent {
 	 * {@link JSONDocument} with resources known to the Extension. *Most extensions don't need to
 	 * implement this.*
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public preread(readerContext: ReaderContext, propertyType: PropertyType): this {
+	public preread(_readerContext: ReaderContext, _propertyType: PropertyType): this {
 		return this;
 	}
 
@@ -126,8 +129,7 @@ export abstract class Extension implements ExtensionPropertyParent {
 	 * {@link JSONDocument} with resources known to the Extension. *Most extensions don't need to
 	 * implement this.*
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public prewrite(writerContext: WriterContext, propertyType: PropertyType): this {
+	public prewrite(_writerContext: WriterContext, _propertyType: PropertyType): this {
 		return this;
 	}
 

@@ -1,8 +1,17 @@
-import { Extension, ReaderContext, WriterContext } from '@gltf-transform/core';
+import { Extension, MathUtils, ReaderContext, WriterContext, vec3 } from '@gltf-transform/core';
 import { KHR_LIGHTS_PUNCTUAL } from '../constants';
-import { Light, LightType } from './light';
+import { Light } from './light';
 
 const NAME = KHR_LIGHTS_PUNCTUAL;
+
+interface LightDef {
+	color?: vec3;
+	intensity?: number;
+	range?: number;
+	innerConeAngle?: number;
+	outerConeAngle?: number;
+	type: 'spot' | 'cone' | 'directional'
+}
 
 /** Documentation in {@link EXTENSIONS.md}. */
 export class LightsPunctual extends Extension {
@@ -18,7 +27,7 @@ export class LightsPunctual extends Extension {
 
 		if (!jsonDoc.json.extensions || !jsonDoc.json.extensions[NAME]) return this;
 
-		const lightDefs = jsonDoc.json.extensions[NAME].lights || [];
+		const lightDefs = jsonDoc.json.extensions[NAME]['lights'] || [] as LightDef[];
 		const lights = lightDefs.map((lightDef) => {
 			const light = this.createLight()
 				.setName(lightDef.name || '')
@@ -40,7 +49,7 @@ export class LightsPunctual extends Extension {
 
 		jsonDoc.json.nodes.forEach((nodeDef, nodeIndex) => {
 			if (!nodeDef.extensions || !nodeDef.extensions[NAME]) return;
-			context.nodes[nodeIndex].setExtension(NAME, lights[nodeDef.extensions[NAME].light]);
+			context.nodes[nodeIndex].setExtension(NAME, lights[nodeDef.extensions[NAME]['light']]);
 		});
 
 		return this;
@@ -56,22 +65,21 @@ export class LightsPunctual extends Extension {
 
 		for (const property of this.properties) {
 			const light = property as Light;
-			const lightDef = {
-				type: light.getType(),
-				color: light.getColor(),
-				intensity: light.getIntensity(),
-				range: light.getRange(),
-			};
+			const lightDef = {type: light.getType()} as LightDef;
+
+			if (!MathUtils.eq(light.getColor(), [1, 1, 1])) lightDef.color = light.getColor();
+			if (light.getIntensity() !== 1) lightDef.intensity = light.getIntensity();
+			if (light.getRange() != null) lightDef.range = light.getRange()!;
 
 			if (light.getName()) lightDef['name'] = light.getName();
 
-			if (light.getType() === LightType.SPOT) {
+			if (light.getType() === Light.Type.SPOT) {
 				lightDef['innerConeAngle'] = light.getInnerConeAngle();
 				lightDef['outerConeAngle'] = light.getOuterConeAngle();
 			}
 
 			lightDefs.push(lightDef);
-			lightIndexMap.set(light, lightDefs.length - 1)
+			lightIndexMap.set(light, lightDefs.length - 1);
 		}
 
 		this.doc.getRoot()

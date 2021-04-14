@@ -1,7 +1,7 @@
 require('source-map-support').install();
 
-import * as path from 'path';
-import * as test from 'tape';
+import path from 'path';
+import test from 'tape';
 import { Logger, NodeIO } from '@gltf-transform/core';
 import { partition } from '../';
 
@@ -26,7 +26,7 @@ test('@gltf-transform/lib::partition', t => {
 	], 'partitions into two buffers');
 
 	const bufferReferences = jsonDoc.json.bufferViews.map((b) => b.buffer);
-	t.deepEquals(bufferReferences, [0,0,1,1], 'creates four buffer views');
+	t.deepEquals(bufferReferences, [0, 0, 1, 1], 'creates four buffer views');
 
 	t.end();
 });

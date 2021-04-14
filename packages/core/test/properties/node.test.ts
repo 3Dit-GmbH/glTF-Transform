@@ -1,6 +1,6 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
+import test from 'tape';
 import { Document, NodeIO } from '../../';
 
 test('@gltf-transform/core::node | parent', t => {
@@ -56,7 +56,7 @@ test('@gltf-transform/core::node | traverse', t => {
 
 	let count = 0;
 	node.traverse((_) => count++);
-	t.equal(count, 3, 'traverses all nodes')
+	t.equal(count, 3, 'traverses all nodes');
 
 	t.end();
 });
@@ -98,6 +98,42 @@ test('@gltf-transform/core::node | extras', t => {
 
 	t.deepEqual(doc.getRoot().listNodes()[0].getExtras(), {foo: 1, bar: 2}, 'stores extras');
 	t.deepEqual(doc2.getRoot().listNodes()[0].getExtras(), {foo: 1, bar: 2}, 'roundtrips extras');
+
+	t.end();
+});
+
+test('@gltf-transform/core::node | identity transforms', t => {
+	const io = new NodeIO();
+	const doc = new Document();
+
+	doc.createNode('A');
+	doc.createNode('B').setTranslation([1, 2, 1]);
+	doc.createNode('C').setTranslation([1, 2, 1]).setRotation([1, 0, 0, 0]).setScale([1, 2, 1]);
+
+	const writerOptions = {isGLB: false, basename: 'test'};
+	const { nodes } = io.writeJSON(doc, writerOptions).json;
+
+	const a = nodes.find((n) => n.name === 'A');
+	const b = nodes.find((n) => n.name === 'B');
+	const c = nodes.find((n) => n.name === 'C');
+
+	console.warn(b);
+
+	// t.deepEqual(a, {
+	// 	name: 'A',
+	// }, 'exclude identity transforms');
+
+	// t.deepEqual(b, {
+	// 	name: 'B',
+	// 	translation: [1, 2, 1],
+	// }, 'has only set transform info');
+
+	t.deepEqual(c, {
+		name: 'C',
+		translation: [1, 2, 1],
+		rotation: [1, 0, 0, 0],
+		scale: [1, 2, 1],
+	}, 'has transform info');
 
 	t.end();
 });

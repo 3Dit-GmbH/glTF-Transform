@@ -1,12 +1,10 @@
-import { determinant, getRotation } from 'gl-matrix/mat4'
-import { length } from 'gl-matrix/vec3'
 import { GLB_BUFFER, PropertyType, TypedArray, mat4, vec3, vec4 } from '../constants';
 import { Document } from '../document';
 import { Extension } from '../extension';
 import { JSONDocument } from '../json-document';
-import { Accessor } from '../properties';
+import { Accessor, AnimationSampler, Camera } from '../properties';
 import { GLTF } from '../types/gltf';
-import { FileUtils, ImageUtils, Logger } from '../utils';
+import { FileUtils, ImageUtils, Logger, MathUtils } from '../utils';
 import { ReaderContext } from './reader-context';
 
 const ComponentTypeToTypedArray = {
@@ -58,8 +56,9 @@ export class GLTFReader {
 		const extensionsRequired = json.extensionsRequired || [];
 		for (const Extension of options.extensions) {
 			if (extensionsUsed.includes(Extension.EXTENSION_NAME)) {
-				const extension = doc.createExtension(Extension as unknown as new (doc: Document) => Extension)
-					.setRequired(extensionsRequired.includes(Extension.EXTENSION_NAME));
+				const extension = doc.createExtension(
+					Extension as unknown as new (doc: Document) => Extension
+				).setRequired(extensionsRequired.includes(Extension.EXTENSION_NAME));
 
 				for (const key of extension.dependencies) {
 					extension.install(key, options.dependencies[key]);
@@ -265,7 +264,8 @@ export class GLTFReader {
 				mesh.setWeights(meshDef.weights);
 			}
 
-			meshDef.primitives.forEach((primitiveDef) => {
+			const primitiveDefs = meshDef.primitives || [];
+			primitiveDefs.forEach((primitiveDef) => {
 				const primitive = doc.createPrimitive();
 
 				if (primitiveDef.extras) primitive.setExtras(primitiveDef.extras);
@@ -300,7 +300,7 @@ export class GLTFReader {
 				});
 
 				mesh.addPrimitive(primitive);
-			})
+			});
 
 			return mesh;
 		});
@@ -313,7 +313,7 @@ export class GLTFReader {
 
 			if (cameraDef.extras) camera.setExtras(cameraDef.extras);
 
-			if (cameraDef.type === GLTF.CameraType.PERSPECTIVE) {
+			if (cameraDef.type === Camera.Type.PERSPECTIVE) {
 				camera
 					.setZNear(cameraDef.perspective.znear)
 					.setZFar(cameraDef.perspective.zfar)
@@ -354,7 +354,7 @@ export class GLTFReader {
 				const rotation = [0, 0, 0, 1] as vec4;
 				const scale = [1, 1, 1] as vec3;
 
-				decompose(nodeDef.matrix as mat4, rotation, translation, scale);
+				MathUtils.decompose(nodeDef.matrix as mat4, translation, rotation, scale);
 
 				node.setTranslation(translation);
 				node.setRotation(rotation);
@@ -406,7 +406,7 @@ export class GLTFReader {
 			if (nodeDef.camera !== undefined) node.setCamera(context.cameras[nodeDef.camera]);
 
 			if (nodeDef.skin !== undefined) node.setSkin(context.skins[nodeDef.skin]);
-		})
+		});
 
 		/** Animations. */
 
@@ -421,13 +421,15 @@ export class GLTFReader {
 				const sampler = doc.createAnimationSampler()
 					.setInput(context.accessors[samplerDef.input])
 					.setOutput(context.accessors[samplerDef.output])
-					.setInterpolation(samplerDef.interpolation || GLTF.AnimationSamplerInterpolation.LINEAR);
+					.setInterpolation(
+						samplerDef.interpolation || AnimationSampler.Interpolation.LINEAR
+					);
 
 				if (samplerDef.extras) sampler.setExtras(samplerDef.extras);
 
 				animation.addSampler(sampler);
 				return sampler;
-			})
+			});
 
 			const channels = animationDef.channels || [];
 			channels.forEach((channelDef) => {
@@ -506,7 +508,9 @@ export class GLTFReader {
 function getInterleavedArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument): TypedArray {
 	const bufferViewDef = jsonDoc.json.bufferViews[accessorDef.bufferView];
 	const bufferDef = jsonDoc.json.buffers[bufferViewDef.buffer];
-	const resource = bufferDef.uri ? jsonDoc.resources[bufferDef.uri] : jsonDoc.resources[GLB_BUFFER];
+	const resource = bufferDef.uri
+		? jsonDoc.resources[bufferDef.uri]
+		: jsonDoc.resources[GLB_BUFFER];
 
 	const TypedArray = ComponentTypeToTypedArray[accessorDef.componentType];
 	const elementSize = Accessor.getElementSize(accessorDef.type);
@@ -522,22 +526,22 @@ function getInterleavedArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument)
 			const byteOffset = accessorByteOffset + i * byteStride + j * componentSize;
 			let value: number;
 			switch (accessorDef.componentType) {
-				case GLTF.AccessorComponentType.FLOAT:
+				case Accessor.ComponentType.FLOAT:
 					value = view.getFloat32(byteOffset, true);
 					break;
-				case GLTF.AccessorComponentType.UNSIGNED_INT:
+				case Accessor.ComponentType.UNSIGNED_INT:
 					value = view.getUint32(byteOffset, true);
 					break;
-				case GLTF.AccessorComponentType.UNSIGNED_SHORT:
+				case Accessor.ComponentType.UNSIGNED_SHORT:
 					value = view.getUint16(byteOffset, true);
 					break;
-				case GLTF.AccessorComponentType.UNSIGNED_BYTE:
+				case Accessor.ComponentType.UNSIGNED_BYTE:
 					value = view.getUint8(byteOffset);
 					break;
-				case GLTF.AccessorComponentType.SHORT:
+				case Accessor.ComponentType.SHORT:
 					value = view.getInt16(byteOffset, true);
 					break;
-				case GLTF.AccessorComponentType.BYTE:
+				case Accessor.ComponentType.BYTE:
 					value = view.getInt8(byteOffset);
 					break;
 				default:
@@ -557,7 +561,9 @@ function getInterleavedArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument)
 function getAccessorArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument): TypedArray {
 	const bufferViewDef = jsonDoc.json.bufferViews[accessorDef.bufferView];
 	const bufferDef = jsonDoc.json.buffers[bufferViewDef.buffer];
-	const resource = bufferDef.uri ? jsonDoc.resources[bufferDef.uri] : jsonDoc.resources[GLB_BUFFER];
+	const resource = bufferDef.uri
+		? jsonDoc.resources[bufferDef.uri]
+		: jsonDoc.resources[GLB_BUFFER];
 
 	const TypedArray = ComponentTypeToTypedArray[accessorDef.componentType];
 	const elementSize = Accessor.getElementSize(accessorDef.type);
@@ -572,17 +578,17 @@ function getAccessorArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument): T
 	const start = (bufferViewDef.byteOffset || 0) + (accessorDef.byteOffset || 0);
 
 	switch (accessorDef.componentType) {
-		case GLTF.AccessorComponentType.FLOAT:
+		case Accessor.ComponentType.FLOAT:
 			return new Float32Array(resource, start, accessorDef.count * elementSize);
-		case GLTF.AccessorComponentType.UNSIGNED_INT:
+		case Accessor.ComponentType.UNSIGNED_INT:
 			return new Uint32Array(resource, start, accessorDef.count * elementSize);
-		case GLTF.AccessorComponentType.UNSIGNED_SHORT:
+		case Accessor.ComponentType.UNSIGNED_SHORT:
 			return new Uint16Array(resource, start, accessorDef.count * elementSize);
-		case GLTF.AccessorComponentType.UNSIGNED_BYTE:
+		case Accessor.ComponentType.UNSIGNED_BYTE:
 			return new Uint8Array(resource, start, accessorDef.count * elementSize);
-		case GLTF.AccessorComponentType.SHORT:
+		case Accessor.ComponentType.SHORT:
 			return new Int16Array(resource, start, accessorDef.count * elementSize);
-		case GLTF.AccessorComponentType.BYTE:
+		case Accessor.ComponentType.BYTE:
 			return new Int8Array(resource, start, accessorDef.count * elementSize);
 		default:
 			throw new Error(`Unexpected componentType "${accessorDef.componentType}".`);
@@ -619,46 +625,4 @@ function getSparseArray(accessorDef: GLTF.IAccessor, jsonDoc: JSONDocument): Typ
 	}
 
 	return array;
-}
-
-// See: https://github.com/toji/gl-matrix/issues/408
-function decompose(srcMat: mat4, targetRot: vec4, targetPos: vec3, targetScale: vec3): void {
-
-	let sx = length([srcMat[0], srcMat[1], srcMat[2]]);
-	const sy = length([srcMat[4], srcMat[5], srcMat[6]]);
-	const sz = length([srcMat[8], srcMat[9], srcMat[10]]);
-
-	// if determine is negative, we need to invert one scale
-	const det = determinant(srcMat);
-	if (det < 0) sx = - sx;
-
-	targetPos[0] = srcMat[12];
-	targetPos[1] = srcMat[13];
-	targetPos[2] = srcMat[14];
-
-	// scale the rotation part
-	const _m1 = srcMat.slice();
-
-	const invSX = 1 / sx;
-	const invSY = 1 / sy;
-	const invSZ = 1 / sz;
-
-	_m1[0] *= invSX;
-	_m1[1] *= invSX;
-	_m1[2] *= invSX;
-
-	_m1[4] *= invSY;
-	_m1[5] *= invSY;
-	_m1[6] *= invSY;
-
-	_m1[8] *= invSZ;
-	_m1[9] *= invSZ;
-	_m1[10] *= invSZ;
-
-	getRotation(targetRot, _m1);
-
-	targetScale[0] = sx;
-	targetScale[1] = sy;
-	targetScale[2] = sz;
-
 }

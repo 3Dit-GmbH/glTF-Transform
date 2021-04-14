@@ -43,13 +43,11 @@ export abstract class Property extends GraphNode {
 	/** Property type. */
 	public abstract readonly propertyType: string;
 
-	protected readonly graph: PropertyGraph;
-
-	private _extras: object = {};
+	private _extras: Record<string, unknown> = {};
 	private _name = '';
 
 	/** @hidden */
-	constructor(graph: PropertyGraph, name = '') {
+	constructor(protected readonly graph: PropertyGraph, name = '') {
 		super(graph);
 		this._name = name;
 	}
@@ -83,13 +81,13 @@ export abstract class Property extends GraphNode {
 	 * Returns a reference to the Extras object, containing application-specific data for this
 	 * Property. Extras should be an Object, not a primitive value, for best portability.
 	 */
-	public getExtras(): object { return this._extras; }
+	public getExtras(): Record<string, unknown> { return this._extras; }
 
 	/**
 	 * Updates the Extras object, containing application-specific data for this Property. Extras
 	 * should be an Object, not a primitive value, for best portability.
 	 */
-	public setExtras(extras: object): this {
+	public setExtras(extras: Record<string, unknown>): this {
 		this._extras = extras;
 		return this;
 	}
@@ -117,7 +115,7 @@ export abstract class Property extends GraphNode {
 	 * @param other Property to copy references from.
 	 * @param resolve Function to resolve each Property being transferred. Default is identity.
 	 */
-	public copy(other: this, resolve: PropertyResolver<Property>): this {
+	public copy(other: this, _resolve: PropertyResolver<Property> = COPY_IDENTITY): this {
 		this._name = other._name;
 		this._extras = JSON.parse(JSON.stringify(other._extras));
 		return this;

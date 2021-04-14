@@ -8,9 +8,8 @@ import { Link } from './graph-links';
  * @category Graph
  */
 export abstract class GraphNode {
-	protected readonly graph: Graph<GraphNode>;
 	private _disposed = false;
-	constructor(graph: Graph<GraphNode>) {
+	constructor(protected readonly graph: Graph<GraphNode>) {
 		this.graph = graph;
 	}
 
@@ -69,7 +68,9 @@ export abstract class GraphNode {
 	 *
 	 * @hidden
 	 */
-	protected addGraphChild(links: Link<GraphNode, GraphNode>[], link: Link<GraphNode, GraphNode>): this {
+	protected addGraphChild(
+			links: Link<GraphNode, GraphNode>[],
+			link: Link<GraphNode, GraphNode>): this {
 		links.push(link);
 		link.onDispose(() => {
 			const remaining = links.filter((l) => l !== link);

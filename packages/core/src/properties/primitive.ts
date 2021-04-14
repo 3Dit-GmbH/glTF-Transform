@@ -3,9 +3,10 @@ import { GraphChild, GraphChildList } from '../graph/index';
 import { Link } from '../graph/index';
 import { GLTF } from '../types/gltf';
 import { Accessor } from './accessor';
+import { ExtensibleProperty } from './extensible-property';
 import { Material } from './material';
 import { PrimitiveTarget } from './primitive-target';
-import { COPY_IDENTITY, Property } from './property';
+import { COPY_IDENTITY } from './property';
 import { AttributeLink } from './property-links';
 
 /**
@@ -42,14 +43,14 @@ import { AttributeLink } from './property-links';
  *
  * @category Properties
  */
-export class Primitive extends Property {
+export class Primitive extends ExtensibleProperty {
 	public readonly propertyType = PropertyType.PRIMITIVE;
 
 	/** @hidden GPU draw mode. */
-	private _mode: GLTF.MeshPrimitiveMode = GLTF.MeshPrimitiveMode.TRIANGLES;
+	private _mode: GLTF.MeshPrimitiveMode = Primitive.Mode.TRIANGLES;
 
-	@GraphChild private material: Link<Primitive, Material> = null;
-	@GraphChild private indices: Link<Primitive, Accessor> = null;
+	@GraphChild private material: Link<Primitive, Material> | null = null;
+	@GraphChild private indices: Link<Primitive, Accessor> | null = null;
 	@GraphChildList private attributes: AttributeLink[] = [];
 	@GraphChildList private targets: Link<Primitive, PrimitiveTarget>[] = [];
 
@@ -63,7 +64,7 @@ export class Primitive extends Property {
 
 		this.clearGraphChildList(this.attributes);
 		other.listSemantics().forEach((semantic) => {
-			this.setAttribute(semantic, resolve(other.getAttribute(semantic)));
+			this.setAttribute(semantic, resolve(other.getAttribute(semantic)!));
 		});
 
 		this.clearGraphChildList(this.targets);
@@ -72,8 +73,41 @@ export class Primitive extends Property {
 		return this;
 	}
 
+	/**********************************************************************************************
+	 * Static.
+	 */
+
+	/** Type of primitives to render. All valid values correspond to WebGL enums. */
+	public static Mode: Record<string, GLTF.MeshPrimitiveMode> = {
+		/** Draw single points. */
+		POINTS: 0,
+		/** Draw lines. Each vertex connects to the one after it. */
+		LINES: 1,
+		/**
+		 * Draw lines. Each set of two vertices is treated as a separate line segment.
+		 * @deprecated See {@link https://github.com/KhronosGroup/glTF/issues/1883 KhronosGroup/glTF#1883}.
+		 */
+		LINE_LOOP: 2,
+		/** Draw a connected group of line segments from the first vertex to the last,  */
+		LINE_STRIP: 3,
+		/** Draw triangles. Each set of three vertices creates a separate triangle. */
+		TRIANGLES: 4,
+		/** Draw a connected strip of triangles. */
+		TRIANGLE_STRIP: 5,
+		/**
+		 * Draw a connected group of triangles. Each vertex connects to the previous and the first
+		 * vertex in the fan.
+		 * @deprecated See {@link https://github.com/KhronosGroup/glTF/issues/1883 KhronosGroup/glTF#1883}.
+		 */
+		TRIANGLE_FAN: 6,
+	}
+
+	/**********************************************************************************************
+	 * Primitive data.
+	 */
+
 	/** Returns an {@link Accessor} with indices of vertices to be drawn. */
-	public getIndices(): Accessor {
+	public getIndices(): Accessor | null {
 		return this.indices ? this.indices.getChild() : null;
 	}
 
@@ -82,13 +116,13 @@ export class Primitive extends Property {
 	 * each set of three indices define a triangle. The front face has a counter-clockwise (CCW)
 	 * winding order.
 	 */
-	public setIndices(indices: Accessor): this {
+	public setIndices(indices: Accessor | null): this {
 		this.indices = this.graph.linkIndex('index', this, indices);
 		return this;
 	}
 
 	/** Returns a vertex attribute as an {@link Accessor}. */
-	public getAttribute(semantic: string): Accessor {
+	public getAttribute(semantic: string): Accessor | null {
 		const link = this.attributes.find((link) => link.semantic === semantic);
 		return link ? link.getChild() : null;
 	}
@@ -97,7 +131,7 @@ export class Primitive extends Property {
 	 * Sets a vertex attribute to an {@link Accessor}. All attributes must have the same vertex
 	 * count.
 	 */
-	public setAttribute(semantic: string, accessor: Accessor): this {
+	public setAttribute(semantic: string, accessor: Accessor | null): this {
 		// Remove previous attribute.
 		const prevAccessor = this.getAttribute(semantic);
 		if (prevAccessor) this.removeGraphChild(this.attributes, prevAccessor);
@@ -106,7 +140,7 @@ export class Primitive extends Property {
 		if (!accessor) return this;
 
 		// Add next attribute.
-		const link = this.graph.linkAttribute(semantic.toLowerCase(), this, accessor) as AttributeLink;
+		const link = this.graph.linkAttribute(semantic.toLowerCase(), this, accessor);
 		link.semantic = semantic;
 		return this.addGraphChild(this.attributes, link);
 	}
@@ -130,13 +164,19 @@ export class Primitive extends Property {
 	}
 
 	/** Returns the material used to render the primitive. */
-	public getMaterial(): Material { return this.material ? this.material.getChild() : null; }
+	public getMaterial(): Material | null {
+		return this.material ? this.material.getChild() : null;
+	}
 
 	/** Sets the material used to render the primitive. */
-	public setMaterial(material: Material): this {
+	public setMaterial(material: Material | null): this {
 		this.material = this.graph.link('material', this, material);
 		return this;
 	}
+
+	/**********************************************************************************************
+	 * Mode.
+	 */
 
 	/**
 	 * Returns the GPU draw mode (`TRIANGLES`, `LINES`, `POINTS`...) as a WebGL enum value.
@@ -156,6 +196,10 @@ export class Primitive extends Property {
 		this._mode = mode;
 		return this;
 	}
+
+	/**********************************************************************************************
+	 * Morph targets.
+	 */
 
 	/** Lists all morph targets associated with the primitive. */
 	public listTargets(): PrimitiveTarget[] {

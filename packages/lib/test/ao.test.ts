@@ -1,8 +1,8 @@
 require('source-map-support').install();
 
-import * as path from 'path';
-import * as gl from 'gl';
-import * as test from 'tape';
+import path from 'path';
+import gl from 'gl';
+import test from 'tape';
 import { NodeIO } from '@gltf-transform/core';
 import { ao } from '../';
 
@@ -15,13 +15,13 @@ test('@gltf-transform/lib::ao', t => {
 
 	t.notOk(material.getOcclusionTexture(), 'begins without occlusionTexture');
 	t.notOk(primitive.getAttribute('TEXCOORD_1'), 'begins without TEXCOORD_1');
-	t.equals(root.listTextures().length, 1, 'begins with one texture')
+	t.equals(root.listTextures().length, 1, 'begins with one texture');
 
 	ao({gl})(doc);
 
 	t.ok(material.getOcclusionTexture(), 'adds occlusionTexture');
 	t.ok(primitive.getAttribute('TEXCOORD_1'), 'adds TEXCOORD_1');
-	t.equals(root.listTextures().length, 2, 'adds texture')
+	t.equals(root.listTextures().length, 2, 'adds texture');
 
 	t.end();
 });

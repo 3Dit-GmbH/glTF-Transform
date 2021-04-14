@@ -1,4 +1,4 @@
-import { Document, GLTF, Transform } from '@gltf-transform/core';
+import { Accessor, AnimationChannel, AnimationSampler, Document, Transform } from '@gltf-transform/core';
 
 const NAME = 'sequence';
 
@@ -12,7 +12,7 @@ export interface SequenceOptions {
 const DEFAULT_OPTIONS: SequenceOptions = {
 	name: '',
 	fps: 10,
-	pattern: null,
+	pattern: /.*/,
 	sort: true,
 };
 
@@ -23,14 +23,14 @@ const DEFAULT_OPTIONS: SequenceOptions = {
  * - **pattern**: Pattern (regex) used to filter nodes for the sequence. Required.
  * - **sort**: Whether to sort the nodes by name, or use original order. Default true.
  */
-export function sequence (options: SequenceOptions): Transform {
+export function sequence (options: SequenceOptions = DEFAULT_OPTIONS): Transform {
 	options = {...DEFAULT_OPTIONS, ...options};
 
 	return (doc: Document): void => {
 
 		const logger = doc.getLogger();
 		const root = doc.getRoot();
-		const fps = options.fps;
+		const fps = options.fps as number;
 
 		// Collect sequence nodes.
 		const sequenceNodes = root.listNodes()
@@ -50,13 +50,13 @@ export function sequence (options: SequenceOptions): Transform {
 			let outputArray;
 			if (i === 0) {
 				inputArray = [i / fps, (i + 1) / fps];
-				outputArray = [1,1,1, 0,0,0];
+				outputArray = [1, 1, 1, 0, 0, 0];
 			} else if (i === sequenceNodes.length - 1) {
 				inputArray = [(i - 1) / fps, i / fps];
-				outputArray = [0,0,0, 1,1,1];
+				outputArray = [0, 0, 0, 1, 1, 1];
 			} else {
 				inputArray = [(i - 1) / fps, i / fps, (i + 1) / fps];
-				outputArray = [0,0,0, 1,1,1, 0,0,0];
+				outputArray = [0, 0, 0, 1, 1, 1, 0, 0, 0];
 			}
 
 			// Append channel to animation sequence.
@@ -66,14 +66,14 @@ export function sequence (options: SequenceOptions): Transform {
 			const output = doc.createAccessor()
 				.setArray(new Float32Array(outputArray))
 				.setBuffer(animBuffer)
-				.setType(GLTF.AccessorType.VEC3);
+				.setType(Accessor.Type.VEC3);
 			const sampler = doc.createAnimationSampler()
-				.setInterpolation(GLTF.AnimationSamplerInterpolation.STEP)
+				.setInterpolation(AnimationSampler.Interpolation.STEP)
 				.setInput(input)
 				.setOutput(output);
 			const channel = doc.createAnimationChannel()
 				.setTargetNode(node)
-				.setTargetPath(GLTF.AnimationChannelTargetPath.SCALE)
+				.setTargetPath(AnimationChannel.TargetPath.SCALE)
 				.setSampler(sampler);
 			anim.addSampler(sampler).addChannel(channel);
 		});

@@ -43,7 +43,7 @@ export class Material extends ExtensibleProperty {
 	public readonly propertyType = PropertyType.MATERIAL;
 
 	/** @hidden Mode of the material's alpha channels. (`OPAQUE`, `BLEND`, or `MASK`) */
-	private _alphaMode: GLTF.MaterialAlphaMode = GLTF.MaterialAlphaMode.OPAQUE;
+	private _alphaMode: GLTF.MaterialAlphaMode = Material.AlphaMode.OPAQUE;
 
 	/** @hidden Visibility threshold. Applied only when `.alphaMode='MASK'`. */
 	private _alphaCutoff = 0.5;
@@ -78,12 +78,12 @@ export class Material extends ExtensibleProperty {
 	private _metallicFactor = 1;
 
 	/** @hidden Base color / albedo texture. */
-	@GraphChild private baseColorTexture: Link<this, Texture> = null;
+	@GraphChild private baseColorTexture: Link<this, Texture> | null = null;
 	@GraphChild private baseColorTextureInfo: Link<this, TextureInfo> =
 		this.graph.link('baseColorTextureInfo', this, new TextureInfo(this.graph));
 
 	/** @hidden Emissive texture. */
-	@GraphChild private emissiveTexture: Link<this, Texture> = null;
+	@GraphChild private emissiveTexture: Link<this, Texture> | null = null;
 	@GraphChild private emissiveTextureInfo: Link<this, TextureInfo> =
 		this.graph.link('emissiveTextureInfo', this, new TextureInfo(this.graph));
 
@@ -92,7 +92,7 @@ export class Material extends ExtensibleProperty {
 	 * so PNG files are preferred.
 	 * @hidden
 	 */
-	@GraphChild private normalTexture: Link<this, Texture> = null;
+	@GraphChild private normalTexture: Link<this, Texture> | null = null;
 	@GraphChild private normalTextureInfo: Link<this, TextureInfo> =
 		this.graph.link('normalTextureInfo', this, new TextureInfo(this.graph));
 
@@ -101,7 +101,7 @@ export class Material extends ExtensibleProperty {
 	 * texture to be packed with `metallicRoughnessTexture`, optionally.
 	 * @hidden
 	 */
-	@GraphChild private occlusionTexture: Link<this, Texture> = null;
+	@GraphChild private occlusionTexture: Link<this, Texture> | null = null;
 	@GraphChild private occlusionTextureInfo: Link<this, TextureInfo> =
 		this.graph.link('occlusionTextureInfo', this, new TextureInfo(this.graph));
 
@@ -111,7 +111,7 @@ export class Material extends ExtensibleProperty {
 	 * `occlusionTexture`, optionally.
 	 * @hidden
 	*/
-	@GraphChild private metallicRoughnessTexture: Link<this, Texture> = null;
+	@GraphChild private metallicRoughnessTexture: Link<this, Texture> | null = null;
 	@GraphChild private metallicRoughnessTextureInfo: Link<this, TextureInfo> =
 		this.graph.link('metallicRoughnessTextureInfo', this, new TextureInfo(this.graph));
 
@@ -130,23 +130,28 @@ export class Material extends ExtensibleProperty {
 
 		if (other.baseColorTexture) {
 			this.setBaseColorTexture(resolve(other.baseColorTexture.getChild()));
-			this.getBaseColorTextureInfo().copy(resolve(other.baseColorTextureInfo.getChild()), resolve);
+			this.getBaseColorTextureInfo()
+				.copy(resolve(other.baseColorTextureInfo.getChild()), resolve);
 		}
 		if (other.emissiveTexture) {
 			this.setEmissiveTexture(resolve(other.emissiveTexture.getChild()));
-			this.getEmissiveTextureInfo().copy(resolve(other.emissiveTextureInfo.getChild()), resolve);
+			this.getEmissiveTextureInfo()
+				.copy(resolve(other.emissiveTextureInfo.getChild()), resolve);
 		}
 		if (other.normalTexture) {
 			this.setNormalTexture(resolve(other.normalTexture.getChild()));
-			this.getNormalTextureInfo().copy(resolve(other.normalTextureInfo.getChild()), resolve);
+			this.getNormalTextureInfo()
+				.copy(resolve(other.normalTextureInfo.getChild()), resolve);
 		}
 		if (other.occlusionTexture) {
 			this.setOcclusionTexture(resolve(other.occlusionTexture.getChild()));
-			this.getOcclusionTextureInfo().copy(resolve(other.occlusionTextureInfo.getChild()), resolve);
+			this.getOcclusionTextureInfo()
+				.copy(resolve(other.occlusionTextureInfo.getChild()), resolve);
 		}
 		if (other.metallicRoughnessTexture) {
 			this.setMetallicRoughnessTexture(resolve(other.metallicRoughnessTexture.getChild()));
-			this.getMetallicRoughnessTextureInfo().copy(resolve(other.metallicRoughnessTextureInfo.getChild()), resolve);
+			this.getMetallicRoughnessTextureInfo()
+				.copy(resolve(other.metallicRoughnessTextureInfo.getChild()), resolve);
 		}
 
 		return this;
@@ -160,6 +165,28 @@ export class Material extends ExtensibleProperty {
 		this.occlusionTextureInfo.getChild().dispose();
 		this.metallicRoughnessTextureInfo.getChild().dispose();
 		super.dispose();
+	}
+
+	/**********************************************************************************************
+	 * Static.
+	 */
+
+	public static AlphaMode: Record<string, GLTF.MaterialAlphaMode> = {
+		/**
+		 * The alpha value is ignored and the rendered output is fully opaque
+		 */
+		OPAQUE: 'OPAQUE',
+		/**
+		 * The rendered output is either fully opaque or fully transparent depending on the alpha
+		 * value and the specified alpha cutoff value
+		 */
+		MASK: 'MASK',
+		/**
+		 * The alpha value is used to composite the source and destination areas. The rendered
+		 * output is combined with the background using the normal painting operation (i.e. the
+		 * Porter and Duff over operator)
+		 */
+		BLEND: 'BLEND',
 	}
 
 	/**********************************************************************************************
@@ -266,7 +293,7 @@ export class Material extends ExtensibleProperty {
 	 * Reference:
 	 * - [glTF → material.pbrMetallicRoughness.baseColorFactor](https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#pbrmetallicroughnessbasecolorfactor)
 	 */
-	public getBaseColorTexture(): Texture {
+	public getBaseColorTexture(): Texture | null {
 		return this.baseColorTexture ? this.baseColorTexture.getChild() : null;
 	}
 
@@ -274,12 +301,12 @@ export class Material extends ExtensibleProperty {
 	 * Settings affecting the material's use of its base color texture. If no texture is attached,
 	 * {@link TextureInfo} is `null`.
 	 */
-	public getBaseColorTextureInfo(): TextureInfo {
+	public getBaseColorTextureInfo(): TextureInfo | null {
 		return this.baseColorTexture ? this.baseColorTextureInfo.getChild() : null;
 	}
 
 	/** Sets base color / albedo texture. See {@link getBaseColorTexture}. */
-	public setBaseColorTexture(texture: Texture): this {
+	public setBaseColorTexture(texture: Texture | null): this {
 		this.baseColorTexture = this.graph.link('baseColorTexture', this, texture);
 		return this;
 	}
@@ -323,7 +350,7 @@ export class Material extends ExtensibleProperty {
 	 * Reference:
 	 * - [glTF → material.emissiveTexture](https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#materialemissivetexture)
 	 */
-	public getEmissiveTexture(): Texture {
+	public getEmissiveTexture(): Texture | null {
 		return this.emissiveTexture ? this.emissiveTexture.getChild() : null;
 	}
 
@@ -331,12 +358,12 @@ export class Material extends ExtensibleProperty {
 	 * Settings affecting the material's use of its emissive texture. If no texture is attached,
 	 * {@link TextureInfo} is `null`.
 	 */
-	public getEmissiveTextureInfo(): TextureInfo {
+	public getEmissiveTextureInfo(): TextureInfo | null {
 		return this.emissiveTexture ? this.emissiveTextureInfo.getChild() : null;
 	}
 
 	/** Sets emissive texture. See {@link getEmissiveTexture}. */
-	public setEmissiveTexture(texture: Texture): this {
+	public setEmissiveTexture(texture: Texture | null): this {
 		this.emissiveTexture = this.graph.link('emissiveTexture', this, texture);
 		return this;
 	}
@@ -366,7 +393,7 @@ export class Material extends ExtensibleProperty {
 	 * Reference:
 	 * - [glTF → material.normalTexture](https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#materialnormaltexture)
 	 */
-	public getNormalTexture(): Texture {
+	public getNormalTexture(): Texture | null {
 		return this.normalTexture ? this.normalTexture.getChild() : null;
 	}
 
@@ -374,12 +401,12 @@ export class Material extends ExtensibleProperty {
 	 * Settings affecting the material's use of its normal texture. If no texture is attached,
 	 * {@link TextureInfo} is `null`.
 	 */
-	public getNormalTextureInfo(): TextureInfo {
+	public getNormalTextureInfo(): TextureInfo | null {
 		return this.normalTexture ? this.normalTextureInfo.getChild() : null;
 	}
 
 	/** Sets normal (surface detail) texture. See {@link getNormalTexture}. */
-	public setNormalTexture(texture: Texture): this {
+	public setNormalTexture(texture: Texture | null): this {
 		this.normalTexture = this.graph.link('normalTexture', this, texture);
 		return this;
 	}
@@ -409,7 +436,7 @@ export class Material extends ExtensibleProperty {
 	 * Reference:
 	 * - [glTF → material.occlusionTexture](https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#materialocclusiontexture)
 	 */
-	public getOcclusionTexture(): Texture {
+	public getOcclusionTexture(): Texture | null {
 		return this.occlusionTexture ? this.occlusionTexture.getChild() : null;
 	}
 
@@ -417,12 +444,12 @@ export class Material extends ExtensibleProperty {
 	 * Settings affecting the material's use of its occlusion texture. If no texture is attached,
 	 * {@link TextureInfo} is `null`.
 	 */
-	public getOcclusionTextureInfo(): TextureInfo {
+	public getOcclusionTextureInfo(): TextureInfo | null {
 		return this.occlusionTexture ? this.occlusionTextureInfo.getChild() : null;
 	}
 
 	/** Sets (ambient) occlusion texture. See {@link getOcclusionTexture}. */
-	public setOcclusionTexture(texture: Texture): this {
+	public setOcclusionTexture(texture: Texture | null): this {
 		this.occlusionTexture = this.graph.link('occlusionTexture', this, texture);
 		return this;
 	}
@@ -470,7 +497,7 @@ export class Material extends ExtensibleProperty {
 	 * Reference:
 	 * - [glTF → material.pbrMetallicRoughness.metallicRoughnessTexture](https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#pbrmetallicroughnessmetallicroughnesstexture)
 	 */
-	public getMetallicRoughnessTexture(): Texture {
+	public getMetallicRoughnessTexture(): Texture | null {
 		return this.metallicRoughnessTexture ? this.metallicRoughnessTexture.getChild() : null;
 	}
 
@@ -478,12 +505,12 @@ export class Material extends ExtensibleProperty {
 	 * Settings affecting the material's use of its metallic/roughness texture. If no texture is
 	 * attached, {@link TextureInfo} is `null`.
 	 */
-	public getMetallicRoughnessTextureInfo(): TextureInfo {
+	public getMetallicRoughnessTextureInfo(): TextureInfo | null {
 		return this.metallicRoughnessTexture ? this.metallicRoughnessTextureInfo.getChild() : null;
 	}
 
 	/** Sets metallic/roughness texture. See {@link getMetallicRoughnessTexture}. */
-	public setMetallicRoughnessTexture(texture: Texture): this {
+	public setMetallicRoughnessTexture(texture: Texture | null): this {
 		this.metallicRoughnessTexture = this.graph.link('metallicRoughnessTexture', this, texture);
 		return this;
 	}

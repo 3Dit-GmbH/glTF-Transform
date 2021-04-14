@@ -129,7 +129,8 @@ export class Document {
 					otherProp = thisProp as Property;
 				} else {
 					// For other property types, create stub classes.
-					const PropertyClass = thisProp.constructor as new(g: PropertyGraph, e?: Extension) => Property;
+					const PropertyClass = thisProp.constructor as
+						new(g: PropertyGraph, e?: Extension) => Property;
 					otherProp = thisProp instanceof ExtensionProperty
 						? new PropertyClass(this._graph, thisExtensions[thisProp.extensionName])
 						: new PropertyClass(this._graph);
@@ -141,9 +142,14 @@ export class Document {
 		}
 
 		// 4. Assemble the links between Properties.
-		const resolve = (p: Property): Property => propertyMap.get(p);
+		const resolve = (p: Property): Property => {
+			const resolved = propertyMap.get(p);
+			if (!resolved) throw new Error('Could resolve property.');
+			return resolved;
+		};
 		for (const otherProp of visited) {
 			const thisProp = propertyMap.get(otherProp);
+			if (!thisProp) throw new Error('Could resolve property.');
 			thisProp.copy(otherProp, resolve);
 		}
 
@@ -151,7 +157,7 @@ export class Document {
 	}
 
 	/**
-	 * Applies a series of modifications to this document. Each transformation is synchronous,
+	 * Applies a series of modifications to this document. Each transformation is asynchronous,
 	 * takes the {@link Document} as input, and returns nothing. Transforms are applied in the
 	 * order given, which may affect the final result.
 	 *
@@ -280,7 +286,7 @@ export class Document {
 	}
 
 	/** Creates a new {@link Accessor} attached to this document's {@link Root}. */
-	createAccessor(name = '', buffer: Buffer = null): Accessor {
+	createAccessor(name = '', buffer: Buffer | null = null): Accessor {
 		if (!buffer) {
 			buffer = this.getRoot().listBuffers()[0];
 		}

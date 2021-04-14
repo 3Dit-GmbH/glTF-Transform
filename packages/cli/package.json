@@ -1,6 +1,6 @@
 {
   "name": "@gltf-transform/cli",
-  "version": "0.7.5",
+  "version": "0.9.8",
   "repository": "github:donmccurdy/glTF-Transform",
   "description": "CLI interface to glTF Transform",
   "main": "dist/cli.js",
@@ -21,16 +21,20 @@
   "homepage": "https://github.com/donmccurdy/glTF-Transform#readme",
   "dependencies": {
     "@caporal/core": "^2.0.2",
-    "@gltf-transform/core": "^0.7.5",
-    "@gltf-transform/extensions": "^0.7.5",
-    "@gltf-transform/lib": "^0.7.5",
-    "@types/node": "^14.14.6",
-    "cli-table": "^0.3.1",
+    "@gltf-transform/core": "^0.9.8",
+    "@gltf-transform/extensions": "^0.9.8",
+    "@gltf-transform/lib": "^0.9.8",
+    "cli-table3": "^0.6.0",
     "command-exists": "^1.2.9",
-    "gl": "^4.5.0",
+    "csv-stringify": "^5.6.2",
+    "draco3dgltf": "^1.4.1",
+    "gl": "^4.9.0",
     "gltf-validator": "^2.0.0-dev.3.2",
+    "markdown-table": "^2.0.0",
+    "mikktspace": "^0.1.2",
     "minimatch": "^3.0.4",
-    "node-gzip": "^1.1.2"
+    "node-gzip": "^1.1.2",
+    "tmp": "^0.2.1"
   },
   "files": [
     "bin/",
@@ -41,12 +45,10 @@
     "package.json",
     "package-lock.json"
   ],
+  "gitHead": "1ebf68281c043a7bf76b9d1075c6f2913fe2e996",
   "pkg": {
-    "assets": [
-      "vendor/**"
-    ]
+    "assets": ["vendor/**"]
   },
-  "gitHead": "f92b1eb22fd911e37688e646767bceb32efb4698",
   "devDependencies": {
     "tmp": "^0.2.1"
   }

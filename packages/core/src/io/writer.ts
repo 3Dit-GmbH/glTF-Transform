@@ -1,8 +1,8 @@
-import { GLB_BUFFER, NAME, PropertyType, VERSION } from '../constants';
+import { GLB_BUFFER, NAME, PropertyType, VERSION, VertexLayout } from '../constants';
 import { Document } from '../document';
 import { Link } from '../graph';
 import { JSONDocument } from '../json-document';
-import { Accessor, AnimationSampler, AttributeLink, IndexLink, Primitive, Property, Root } from '../properties';
+import { Accessor, AnimationSampler, AttributeLink, Camera, IndexLink, Material, Property } from '../properties';
 import { GLTF } from '../types/gltf';
 import { BufferUtils, Logger } from '../utils';
 import { UniqueURIGenerator, WriterContext } from './writer-context';
@@ -12,10 +12,18 @@ const BufferViewTarget = {
 	ELEMENT_ARRAY_BUFFER: 34963
 };
 
+const BufferViewUsage = {
+	ARRAY_BUFFER: 'ARRAY_BUFFER',
+	ELEMENT_ARRAY_BUFFER: 'ELEMENT_ARRAY_BUFFER',
+	INVERSE_BIND_MATRICES: 'INVERSE_BIND_MATRICES',
+	OTHER: 'OTHER',
+};
+
 export interface WriterOptions {
 	logger?: Logger;
 	basename?: string;
 	isGLB?: boolean;
+	vertexLayout?: VertexLayout;
 	dependencies?: {[key: string]: unknown};
 }
 
@@ -23,6 +31,7 @@ const DEFAULT_OPTIONS: WriterOptions = {
 	logger: Logger.DEFAULT_INSTANCE,
 	basename: '',
 	isGLB: true,
+	vertexLayout: VertexLayout.INTERLEAVED,
 	dependencies: {},
 };
 
@@ -68,7 +77,11 @@ export class GLTFWriter {
 		* @param bufferByteOffset Current offset into the buffer, accounting for other buffer views.
 		* @param bufferViewTarget (Optional) target use of the buffer view.
 		*/
-		function concatAccessors(accessors: Accessor[], bufferIndex: number, bufferByteOffset: number, bufferViewTarget?: number): BufferViewResult {
+		function concatAccessors(
+				accessors: Accessor[],
+				bufferIndex: number,
+				bufferByteOffset: number,
+				bufferViewTarget?: number): BufferViewResult {
 			const buffers: ArrayBuffer[] = [];
 			let byteLength = 0;
 
@@ -96,22 +109,25 @@ export class GLTFWriter {
 			if (bufferViewTarget) bufferViewDef.target = bufferViewTarget;
 			json.bufferViews.push(bufferViewDef);
 
-			return {buffers, byteLength}
+			return {buffers, byteLength};
 		}
 
 		/**
-		* Pack a group of accessors into an interleaved buffer view. Appends accessor and buffer view
-		* definitions to the root JSON lists. Buffer view target is implicitly attribute data.
-		*
-		* References:
-		* - [Apple • Best Practices for Working with Vertex Data](https://developer.apple.com/library/archive/documentation/3DDrawing/Conceptual/OpenGLES_ProgrammingGuide/TechniquesforWorkingwithVertexData/TechniquesforWorkingwithVertexData.html)
-		* - [Khronos • Vertex Specification Best Practices](https://www.khronos.org/opengl/wiki/Vertex_Specification_Best_Practices)
-		*
-		* @param accessors Accessors to be included.
-		* @param bufferIndex Buffer to write to.
-		* @param bufferByteOffset Current offset into the buffer, accounting for other buffer views.
-		*/
-		function interleaveAccessors(accessors: Accessor[], bufferIndex: number, bufferByteOffset: number): BufferViewResult {
+		 * Pack a group of accessors into an interleaved buffer view. Appends accessor and buffer
+ 		 * view definitions to the root JSON lists. Buffer view target is implicitly attribute data.
+ 		 *
+ 		 * References:
+		 * - [Apple • Best Practices for Working with Vertex Data](https://developer.apple.com/library/archive/documentation/3DDrawing/Conceptual/OpenGLES_ProgrammingGuide/TechniquesforWorkingwithVertexData/TechniquesforWorkingwithVertexData.html)
+		 * - [Khronos • Vertex Specification Best Practices](https://www.khronos.org/opengl/wiki/Vertex_Specification_Best_Practices)
+ 		 *
+ 		 * @param accessors Accessors to be included.
+ 		 * @param bufferIndex Buffer to write to.
+ 		 * @param bufferByteOffset Offset into the buffer, accounting for other buffer views.
+		 */
+		function interleaveAccessors(
+				accessors: Accessor[],
+				bufferIndex: number,
+				bufferByteOffset: number): BufferViewResult {
 			const vertexCount = accessors[0].getCount();
 			let byteStride = 0;
 
@@ -143,25 +159,26 @@ export class GLTFWriter {
 					const componentType = accessor.getComponentType();
 					const array = accessor.getArray();
 					for (let j = 0; j < elementSize; j++) {
-						const viewByteOffset = i * byteStride + vertexByteOffset + j * componentSize;
+						const viewByteOffset =
+							i * byteStride + vertexByteOffset + j * componentSize;
 						const value = array[i * elementSize + j];
 						switch (componentType) {
-							case GLTF.AccessorComponentType.FLOAT:
+							case Accessor.ComponentType.FLOAT:
 								view.setFloat32(viewByteOffset, value, true);
 								break;
-							case GLTF.AccessorComponentType.BYTE:
+							case Accessor.ComponentType.BYTE:
 								view.setInt8(viewByteOffset, value);
 								break;
-							case GLTF.AccessorComponentType.SHORT:
+							case Accessor.ComponentType.SHORT:
 								view.setInt16(viewByteOffset, value, true);
 								break;
-							case GLTF.AccessorComponentType.UNSIGNED_BYTE:
+							case Accessor.ComponentType.UNSIGNED_BYTE:
 								view.setUint8(viewByteOffset, value);
 								break;
-							case GLTF.AccessorComponentType.UNSIGNED_SHORT:
+							case Accessor.ComponentType.UNSIGNED_SHORT:
 								view.setUint16(viewByteOffset, value, true);
 								break;
-							case GLTF.AccessorComponentType.UNSIGNED_INT:
+							case Accessor.ComponentType.UNSIGNED_INT:
 								view.setUint32(viewByteOffset, value, true);
 								break;
 							default:
@@ -237,61 +254,51 @@ export class GLTFWriter {
 		root.listBuffers().forEach((buffer) => {
 			const bufferDef = context.createPropertyDef(buffer) as GLTF.IBuffer;
 
-			// Attributes are grouped and interleaved in one buffer view per mesh primitive. Indices for
-			// all primitives are grouped into a single buffer view. Everything else goes into a
-			// miscellaneous buffer view.
-			const attributeAccessors = new Map<Primitive, Set<Accessor>>();
-			const indexAccessors = new Set<Accessor>();
-			const ibmAccessors = new Set<Accessor>();
-			const otherAccessors = new Set<Accessor>();
+			// Attributes are grouped and interleaved in one buffer view per mesh primitive.
+			// Indices for all primitives are grouped into a single buffer view. IBMs are grouped
+			// into a single buffer view. Other usage (if specified by extensions) also goes into
+			// a dedicated buffer view. Everything else goes into a miscellaneous buffer view.
 
-			const bufferParents = buffer.listParents()
-				.filter((property) => !(property instanceof Root)) as Property[];
+			// Certain accessor usage should group data into buffer views by the accessor parent.
+			// The `accessorParents` map uses the first parent of each accessor for this purpose.
+			const groupByParent = context.accessorUsageGroupedByParent;
+			const accessorParents = new Map<Property, Set<Accessor>>();
+
+			const bufferAccessors = buffer.listParents()
+				.filter((property) => property instanceof Accessor) as Accessor[];
+			const bufferAccessorsSet = new Set(bufferAccessors);
 
 			// Categorize accessors by use.
-			for (const parent of bufferParents) {
-				if ((!(parent instanceof Accessor))) { // Not expected.
-					throw new Error('Unimplemented buffer reference: ' + parent);
-				}
-
+			for (const accessor of bufferAccessors) {
 				// Skip if already written by an extension.
-				if (context.accessorIndexMap.has(parent)) continue;
+				if (context.accessorIndexMap.has(accessor)) continue;
 
-				let isAttribute = false;
-				let isIndex = false;
-				let isIBM = false;
-				let isOther = false;
-
-				const accessorRefs = accessorLinks.get(parent) || [];
-
+				// Assign usage for core accessor usage types (explicit targets and implicit usage).
+				const accessorRefs = accessorLinks.get(accessor) || [];
 				for (const link of accessorRefs) {
+					if (context.getAccessorUsage(accessor)) break;
+
 					if (link instanceof AttributeLink) {
-						isAttribute = true;
+						context.setAccessorUsage(accessor, BufferViewUsage.ARRAY_BUFFER);
 					} else if (link instanceof IndexLink) {
-						isIndex = true;
+						context.setAccessorUsage(accessor, BufferViewUsage.ELEMENT_ARRAY_BUFFER);
 					} else if (link.getName() === 'inverseBindMatrices') {
-						isIBM = true;
-					} else {
-						isOther = true;
+						context.setAccessorUsage(accessor, BufferViewUsage.INVERSE_BIND_MATRICES);
 					}
 				}
 
-				// If the Accessor isn't used at all, treat it as "other".
-				if (!isAttribute && !isIndex && !isIBM && !isOther) isOther = true;
+				// Group accessors with no specified usage into a miscellaneous buffer view.
+				if (!context.getAccessorUsage(accessor)) {
+					context.setAccessorUsage(accessor, BufferViewUsage.OTHER);
+				}
 
-				if (isAttribute && !isIndex && !isIBM && !isOther) {
-					const primitive = accessorRefs[0].getParent() as Primitive;
-					const primitiveAccessors = attributeAccessors.get(primitive) || new Set<Accessor>();
-					primitiveAccessors.add(parent);
-					attributeAccessors.set(primitive, primitiveAccessors);
-				} else if (isIndex && !isAttribute && !isIBM && !isOther) {
-					indexAccessors.add(parent);
-				} else if (isIBM && !isAttribute && !isIndex && !isOther) {
-					ibmAccessors.add(parent);
-				} else if (isOther && !isAttribute && !isIndex && !isIBM) {
-					otherAccessors.add(parent);
-				} else {
-					throw new Error('Attribute, index, or IBM accessors must be used only for that purpose.');
+				// For accessor usage that requires grouping by parent (vertex and instance
+				// attributes) organize buffer views accordingly.
+				if (groupByParent.has(context.getAccessorUsage(accessor))) {
+					const parent = accessorRefs[0].getParent();
+					const parentAccessors = accessorParents.get(parent) || new Set<Accessor>();
+					parentAccessors.add(accessor);
+					accessorParents.set(parent, parentAccessors);
 				}
 			}
 
@@ -301,30 +308,59 @@ export class GLTFWriter {
 			const bufferIndex = json.buffers.length;
 			let bufferByteLength = 0;
 
-			if (indexAccessors.size) {
-				const indexResult = concatAccessors(Array.from(indexAccessors), bufferIndex, bufferByteLength, BufferViewTarget.ELEMENT_ARRAY_BUFFER);
-				bufferByteLength += indexResult.byteLength;
-				buffers.push(...indexResult.buffers);
-			}
+			const usageGroups = context.listAccessorsByUsage();
 
-			for (const primitiveAccessors of Array.from(attributeAccessors.values())) {
-				if (primitiveAccessors.size) {
-					const primitiveResult = interleaveAccessors(Array.from(primitiveAccessors), bufferIndex, bufferByteLength);
-					bufferByteLength += primitiveResult.byteLength;
-					buffers.push(...primitiveResult.buffers);
+			for (const usage in usageGroups) {
+				if (groupByParent.has(usage)) {
+					// Accessors grouped by (first) parent, including vertex and instance
+					// attributes.
+					for (const parentAccessors of Array.from(accessorParents.values())) {
+						const accessors = Array.from(parentAccessors)
+							.filter((a) => bufferAccessorsSet.has(a))
+							.filter((a) => context.getAccessorUsage(a) === usage);
+						if (!accessors.length) continue;
+
+						if (usage !== BufferViewUsage.ARRAY_BUFFER
+								|| options.vertexLayout === VertexLayout.INTERLEAVED) {
+							// Case 1: Non-vertex data OR interleaved vertex data.
+
+							// Instanced data is not interleaved, see:
+							// https://github.com/KhronosGroup/glTF/pull/1888
+							const result = usage === BufferViewUsage.ARRAY_BUFFER
+								? interleaveAccessors(accessors, bufferIndex, bufferByteLength)
+								: concatAccessors(accessors, bufferIndex, bufferByteLength);
+							bufferByteLength += result.byteLength;
+							buffers.push(...result.buffers);
+						} else {
+							// Case 2: Non-interleaved vertex data.
+
+							for (const accessor of accessors) {
+								// We 'interleave' a single accessor because the method pads to
+								// 4-byte boundaries, which concatAccessors() does not.
+								const result = interleaveAccessors(
+									[accessor],
+									bufferIndex,
+									bufferByteLength,
+								);
+								bufferByteLength += result.byteLength;
+								buffers.push(...result.buffers);
+							}
+						}
+					}
+				} else {
+					// Accessors concatenated end-to-end, including indices, IBMs, and other data.
+					const accessors = usageGroups[usage].filter((a) => bufferAccessorsSet.has(a));
+					if (!accessors.length) continue;
+
+					const target = usage === BufferViewUsage.ELEMENT_ARRAY_BUFFER
+						? BufferViewTarget.ELEMENT_ARRAY_BUFFER
+						: null;
+					const result = concatAccessors(
+						accessors, bufferIndex, bufferByteLength, target
+					);
+					bufferByteLength += result.byteLength;
+					buffers.push(...result.buffers);
 				}
-			}
-
-			if (ibmAccessors.size) {
-				const ibmResult = concatAccessors(Array.from(ibmAccessors), bufferIndex, bufferByteLength);
-				bufferByteLength += ibmResult.byteLength;
-				buffers.push(...ibmResult.buffers);
-			}
-
-			if (otherAccessors.size) {
-				const otherResult = concatAccessors(Array.from(otherAccessors), bufferIndex, bufferByteLength);
-				bufferByteLength += otherResult.byteLength;
-				buffers.push(...otherResult.buffers);
 			}
 
 			// We only support embedded images in GLB, so we know there is only one buffer.
@@ -333,6 +369,13 @@ export class GLTFWriter {
 					json.bufferViews[json.images[i].bufferView].byteOffset = bufferByteLength;
 					bufferByteLength += context.imageBufferViews[i].byteLength;
 					buffers.push(context.imageBufferViews[i]);
+
+					if (bufferByteLength % 4) {
+						// See: https://github.com/KhronosGroup/glTF/issues/1935
+						const imagePadding = 4 - (bufferByteLength % 4);
+						bufferByteLength += imagePadding;
+						buffers.push(new ArrayBuffer(imagePadding));
+					}
 				}
 			}
 
@@ -373,7 +416,7 @@ export class GLTFWriter {
 		});
 
 		if (root.listAccessors().find((a) => !a.getBuffer())) {
-			logger.warn('Skipped writing one or more Accessors: no Buffer assigned.')
+			logger.warn('Skipped writing one or more Accessors: no Buffer assigned.');
 		}
 
 		/* Materials. */
@@ -384,7 +427,7 @@ export class GLTFWriter {
 			// Program state & blending.
 
 			materialDef.alphaMode = material.getAlphaMode();
-			if (material.getAlphaMode() === GLTF.MaterialAlphaMode.MASK) {
+			if (material.getAlphaMode() === Material.AlphaMode.MASK) {
 				materialDef.alphaCutoff = material.getAlphaCutoff();
 			}
 			materialDef.doubleSided = material.getDoubleSided();
@@ -402,7 +445,8 @@ export class GLTFWriter {
 			if (material.getBaseColorTexture()) {
 				const texture = material.getBaseColorTexture();
 				const textureInfo = material.getBaseColorTextureInfo();
-				materialDef.pbrMetallicRoughness.baseColorTexture = context.createTextureInfoDef(texture, textureInfo);
+				materialDef.pbrMetallicRoughness.baseColorTexture
+					= context.createTextureInfoDef(texture, textureInfo);
 			}
 
 			if (material.getEmissiveTexture()) {
@@ -414,7 +458,8 @@ export class GLTFWriter {
 			if (material.getNormalTexture()) {
 				const texture = material.getNormalTexture();
 				const textureInfo = material.getNormalTextureInfo();
-				const textureInfoDef = context.createTextureInfoDef(texture, textureInfo) as GLTF.IMaterialNormalTextureInfo;
+				const textureInfoDef = context.createTextureInfoDef(texture, textureInfo) as
+					GLTF.IMaterialNormalTextureInfo;
 				if (material.getNormalScale() !== 1) {
 					textureInfoDef.scale = material.getNormalScale();
 				}
@@ -424,7 +469,8 @@ export class GLTFWriter {
 			if (material.getOcclusionTexture()) {
 				const texture = material.getOcclusionTexture();
 				const textureInfo = material.getOcclusionTextureInfo();
-				const textureInfoDef = context.createTextureInfoDef(texture, textureInfo) as GLTF.IMaterialOcclusionTextureInfo;
+				const textureInfoDef = context.createTextureInfoDef(texture, textureInfo) as
+					GLTF.IMaterialOcclusionTextureInfo;
 				if (material.getOcclusionStrength() !== 1) {
 					textureInfoDef.strength = material.getOcclusionStrength();
 				}
@@ -434,7 +480,8 @@ export class GLTFWriter {
 			if (material.getMetallicRoughnessTexture()) {
 				const texture = material.getMetallicRoughnessTexture();
 				const textureInfo = material.getMetallicRoughnessTextureInfo();
-				materialDef.pbrMetallicRoughness.metallicRoughnessTexture = context.createTextureInfoDef(texture, textureInfo);
+				materialDef.pbrMetallicRoughness.metallicRoughnessTexture
+					= context.createTextureInfoDef(texture, textureInfo);
 			}
 
 			context.materialIndexMap.set(material, index);
@@ -466,14 +513,16 @@ export class GLTFWriter {
 				}
 
 				for (const semantic of primitive.listSemantics()) {
-					primitiveDef.attributes[semantic] = context.accessorIndexMap.get(primitive.getAttribute(semantic));
+					primitiveDef.attributes[semantic]
+						= context.accessorIndexMap.get(primitive.getAttribute(semantic));
 				}
 
 				for (const target of primitive.listTargets()) {
 					const targetDef = {};
 
 					for (const semantic of target.listSemantics()) {
-						targetDef[semantic] = context.accessorIndexMap.get(target.getAttribute(semantic));
+						targetDef[semantic]
+							= context.accessorIndexMap.get(target.getAttribute(semantic));
 					}
 
 					primitiveDef.targets = primitiveDef.targets || [];
@@ -493,7 +542,7 @@ export class GLTFWriter {
 
 			if (targetNames) {
 				meshDef.extras = meshDef.extras || {};
-				meshDef.extras.targetNames = targetNames;
+				meshDef.extras['targetNames'] = targetNames;
 			}
 
 			context.meshIndexMap.set(mesh, index);
@@ -505,7 +554,7 @@ export class GLTFWriter {
 		json.cameras = root.listCameras().map((camera, index) => {
 			const cameraDef = context.createPropertyDef(camera) as GLTF.ICamera;
 			cameraDef.type = camera.getType();
-			if (cameraDef.type === GLTF.CameraType.PERSPECTIVE) {
+			if (cameraDef.type === Camera.Type.PERSPECTIVE) {
 				cameraDef.perspective = {
 					znear: camera.getZNear(),
 					zfar: camera.getZFar(),
@@ -549,7 +598,8 @@ export class GLTFWriter {
 			const skinDef = context.createPropertyDef(skin) as GLTF.ISkin;
 
 			if (skin.getInverseBindMatrices()) {
-				skinDef.inverseBindMatrices = context.accessorIndexMap.get(skin.getInverseBindMatrices());
+				skinDef.inverseBindMatrices
+					= context.accessorIndexMap.get(skin.getInverseBindMatrices());
 			}
 
 			if (skin.getSkeleton()) {
@@ -580,7 +630,8 @@ export class GLTFWriter {
 			}
 
 			if (node.listChildren().length > 0) {
-				nodeDef.children = node.listChildren().map((node) => context.nodeIndexMap.get(node));
+				nodeDef.children = node.listChildren()
+					.map((node) => context.nodeIndexMap.get(node));
 			}
 		});
 
@@ -599,7 +650,7 @@ export class GLTFWriter {
 					samplerDef.interpolation = sampler.getInterpolation();
 					samplerIndexMap.set(sampler, samplerIndex);
 					return samplerDef;
-				})
+				});
 
 			animationDef.channels = animation.listChannels()
 				.map((channel) => {
@@ -610,7 +661,7 @@ export class GLTFWriter {
 						path: channel.getTargetPath(),
 					};
 					return channelDef;
-				})
+				});
 
 			return animationDef;
 		});

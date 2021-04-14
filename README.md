@@ -1,9 +1,14 @@
+# create an executable with node bundled
+1. `yarn install && yarn dist`
+1. `npx pkg -t node14-linux-x64 --out-path bin .` (pipeline uses **node14-linux-x64** -- other: `-t host`)
+1. `./bin/gltf-transform --help`
+
 # glTF-Transform
 
 [![Latest NPM release](https://img.shields.io/npm/v/@gltf-transform/core.svg)](https://www.npmjs.com/package/@gltf-transform/core)
 [![Minzipped size](https://badgen.net/bundlephobia/minzip/@gltf-transform/core)](https://bundlephobia.com/result?p=@gltf-transform/core)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](https://github.com/donmccurdy/glTF-Transform/blob/master/LICENSE)
-[![Build Status](https://travis-ci.com/donmccurdy/glTF-Transform.svg?branch=master)](https://travis-ci.com/donmccurdy/glTF-Transform)
+[![Build Status](https://github.com/donmccurdy/glTF-Transform/workflows/build/badge.svg?branch=master&event=push)](https://github.com/donmccurdy/glTF-Transform/actions?query=workflow%3Abuild)
 [![Coverage Status](https://coveralls.io/repos/github/donmccurdy/glTF-Transform/badge.svg?branch=master)](https://coveralls.io/github/donmccurdy/glTF-Transform?branch=master)
 
 *glTF 2.0 SDK for JavaScript, TypeScript, and Node.js.*

@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import fs from 'fs';
 import { BufferUtils, Document, FileUtils, ImageUtils, NodeIO, Transform } from '@gltf-transform/core';
 
 const NAME = 'merge';
@@ -30,7 +30,7 @@ const merge = (options: MergeOptions): Transform => {
 			} else if (['gltf', 'glb'].includes(extension)) {
 				doc.merge(io.read(path));
 			} else {
-				throw new Error(`Unknown file extension: "${extension}".`)
+				throw new Error(`Unknown file extension: "${extension}".`);
 			}
 		});
 
@@ -43,6 +43,6 @@ const merge = (options: MergeOptions): Transform => {
 		logger.debug(`${NAME}: Complete.`);
 	};
 
-}
+};
 
 export { merge };

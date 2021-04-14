@@ -23,7 +23,7 @@ export function rotate (options: RotateOptions = DEFAULT_OPTIONS): Transform {
 		doc.getRoot().listScenes().forEach((scene, index) => {
 			logger.debug(`${NAME}: Scene ${index + 1} / ${root.listScenes().length}.`);
 
-            let rot = create();
+            const rot = create();
             logger.debug(`${NAME}: Euler "${options.euler.join(', ')}".`);
             fromEuler(rot, options.euler[0], options.euler[1], options.euler[2]);
 			logger.debug(`${NAME}: Rotation "${rot.join(', ')}".`);

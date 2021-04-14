@@ -1,6 +1,6 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
+import test from 'tape';
 import { Document, Extension, ExtensionProperty, NodeIO, PropertyType, WriterContext } from '../';
 
 const EXTENSION_NAME = 'TEST_node_gizmo';
@@ -126,8 +126,16 @@ test('@gltf-transform/core::extension | i/o', t => {
 		['TEST_node_gizmo'],
 		'roundtrip extensionsUsed'
 	);
-	t.deepEqual(resultDoc.getRoot().listExtensionsRequired(), [], 'roundtrip omit extensionsRequired');
-	t.equal(resultDoc.getRoot().listNodes()[0].getExtension(EXTENSION_NAME).extensionName, 'TEST_node_gizmo', 'roundtrip extend node');
+	t.deepEqual(
+		resultDoc.getRoot().listExtensionsRequired(),
+		[],
+		'roundtrip omit extensionsRequired'
+	);
+	t.equal(
+		resultDoc.getRoot().listNodes()[0].getExtension(EXTENSION_NAME).extensionName,
+		'TEST_node_gizmo',
+		'roundtrip extend node'
+	);
 
 	// Write + read with extensionsRequired.
 

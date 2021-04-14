@@ -19,6 +19,8 @@ as prescribed by the extension itself.
 
 ## Khronos Extensions
 
+*Khronos extensions are widely supported and recommended for general use.*
+
 <details>
 <summary><b>KHR_draco_mesh_compression</b></summary>
 
@@ -44,13 +46,15 @@ respectively, and must be provided by the application:
 import { NodeIO } from '@gltf-transform/core';
 import { DracoMeshCompression } from '@gltf-transform/extensions';
 
-import * as draco3d from 'draco3dgltf';
+import draco3d from 'draco3dgltf';
+
+// ...
 
 const io = new NodeIO()
   .registerExtensions([DracoMeshCompression])
   .registerDependencies({
-    'draco3d.decoder': draco3d.createDecoderModule(),
-    'draco3d.encoder': draco3d.createEncoderModule(),
+    'draco3d.decoder': await draco3d.createDecoderModule(), // Optional.
+    'draco3d.encoder': await draco3d.createEncoderModule(), // Optional.
   });
 
 const doc = io.read('compressed.glb');
@@ -294,6 +298,105 @@ material.setExtension('KHR_materials_unlit', unlit);
 </details>
 
 <details>
+<summary><b>KHR_materials_variants</b></summary>
+
+- *Specification: [KHR_materials_variants](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_variants/)*
+- *Source: [packages/extensions/src/khr-materials-variants/](https://github.com/donmccurdy/glTF-Transform/tree/master/packages/extensions/src/khr-materials-variants)*
+
+`KHR_materials_variants` defines alternate {@link Material} states for any {@link Primitive} in the
+scene, for uses including product configurators, night/day states, healthy/damaged
+states, etc. Mesh geometry cannot be changed by this extension, although another extension
+(tentative: `KHR_mesh_variants`) is under consideration by the Khronos Group, for that purpose.
+
+The `MaterialsVariants` class provides three {@link ExtensionProperty} types: `Variant`, `Mapping`,
+and `MappingList`. When attached to {@link Primitive} properties, these offer flexible ways of
+defining the variants available to an application. Triggering a variant is out of scope of this
+extension, but could be handled in the application with a UI dropdown, particular game states, and
+so on.
+
+```typescript
+import { MaterialsVariants } from '@gltf-transform/extensions';
+
+// Create an Extension attached to the Document.
+const variantExtension = document.createExtension(MaterialsVariants);
+
+// Create some Variant states.
+const healthyVariant = variantExtension.createVariant('Healthy');
+const damagedVariant = variantExtension.createVariant('Damaged');
+
+// Create mappings from a Variant state to a Material.
+const healthyMapping = variantExtension.createMapping()
+  .addVariant(healthyVariant)
+  .setMaterial(healthyMat);
+const damagedMapping = variantExtension.createMapping()
+  .addVariant(damagedVariant)
+  .setMaterial(damagedMat);
+
+// Attach the mappings to a Primitive.
+primitive.setExtension(
+  'KHR_materials_variants',
+  variantExtension.createMappingList()
+    .addMapping(healthyMapping)
+    .addMapping(damagedMapping)
+);
+```
+
+A few notes about this extension:
+
+1. Viewers that don't recognized this extension will show the default material for each primitive
+   instead, so assign that material accordingly. This material can be — but doesn't have to be —
+   associated with one of the available variants.
+2. Mappings can list multiple Variants. In that case, the first Mapping containing an active
+   Variant will be chosen by the viewer.
+3. Variant names are how these states are identified, so choose informative names.
+4. When writing the file to an unpacked `.gltf`, instead of an embedded `.glb`, viewers will have
+   the option of downloading only textures associated with the default state, and lazy-loading
+   any textures for inactive Variants only when they are needed.
+
+</details>
+
+<details>
+<summary><b>KHR_materials_volume</b> <mark><i>(experimental)</i></mark></summary>
+
+- *Specification: [KHR_materials_volume](https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_volume/)*
+- *Source: [packages/extensions/src/khr-materials-volume/](https://github.com/donmccurdy/glTF-Transform/tree/master/packages/extensions/src/khr-materials-volume)*
+
+By default, a glTF 2.0 material describes the scattering properties of a surface enclosing an
+infinitely thin volume. The surface defined by the mesh represents a thin wall. The volume
+extension makes it possible to turn the surface into an interface between volumes. The mesh to
+which the material is attached defines the boundaries of an homogeneous medium and therefore must
+be manifold. Volumes provide effects like refraction, absorption and scattering. Scattering effects
+will require future (TBD) extensions.
+
+The volume extension must be combined with `KHR_materials_transmission` or
+`KHR_materials_translucency` in order to define entry of light into the volume.
+
+The `MaterialsVolume` class provides a single {@link ExtensionProperty} type, `Volume`, which
+may be attached to any {@link Material} instance. For example:
+
+```typescript
+import { MaterialsVolume, Volume } from '@gltf-transform/extensions';
+
+// Create an Extension attached to the Document.
+const volumeExtension = document.createExtension(MaterialsVolume);
+
+// Create a Volume property.
+const volume = volumeExtension.createVolume()
+  .setThicknessFactor(1.0)
+  .setThicknessTexture(texture)
+  .setAttenuationDistance(1.0)
+  .setAttenuationColorHex(0xFFEEEE);
+
+// Attach the property to a Material.
+material.setExtension('KHR_materials_volume', volume);
+```
+
+A thickness texture is required in most realtime renderers, and can be baked in software such as
+Blender or Substance Painter. When `thicknessFactor = 0`, all volumetric effects are disabled.
+
+</details>
+
+<details>
 <summary><b>KHR_mesh_quantization</b></summary>
 
 - *Specification: [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_mesh_quantization/)*
@@ -400,6 +503,69 @@ document.createMaterial()
 
 ## Vendor Extensions
 
+*Multi-vendor extensions should be considered last-mile optimizations for a specific application.
+glTF files using `EXT_*` extensions are not widely portable, nor officially endorsed by Khronos,
+and will not be supported in all applications. It may be difficult to edit a glTF file after
+applying these extensions.*
+
+<details>
+<summary><b>EXT_mesh_gpu_instancing</b></summary>
+
+- *Specification: [EXT_mesh_gpu_instancing](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_mesh_gpu_instancing/)*
+- *Source: [packages/extensions/src/ext-mesh-gpu-instancing/](https://github.com/donmccurdy/glTF-Transform/tree/master/packages/extensions/src/ext-mesh-gpu-instancing)*
+
+The `EXT_mesh_gpu_instancing` extension prepares mesh data for efficient GPU instancing, allowing
+engines to render many copies of a single mesh at once using a small number of draw calls. Instancing
+is particularly useful for things like trees, grass, road signs, etc. Keep in mind that predefined
+batches, as used in this extension, may prevent frustum culling within a batch. Dividing batches
+into collocated cells may be preferable to using a single large batch.
+
+> **Implementation Note:** While this extension stores mesh data optimized for GPU instancing, it
+is important to note that (1) GPU instancing and other optimizations are possible — and encouraged
+— even without this extension, and (2) other common meanings of the term "instancing" exist,
+distinct from this extension. See [Appendix: Motivation and Purpose](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_mesh_gpu_instancing#appendix-motivation-and-purpose)
+of the `EXT_mesh_gpu_instancing` specification.
+
+```typescript
+import { MeshGPUInstancing } from '@gltf-transform/extensions';
+
+// Create standard mesh, node, and scene hierarchy.
+// ...
+
+// Assign positions for each instance.
+const batchPositions = doc.createAccessor('instance_positions')
+  .setArray(new Float32Array([
+    0, 0, 0,
+    1, 0, 0,
+    2, 0, 0,
+  ]))
+  .setType(Accessor.Type.VEC3)
+  .setBuffer(buffer);
+
+// Assign IDs for each instance.
+const batchIDs = doc.createAccessor('instance_ids')
+  .setArray(new Uint8Array([0, 1, 2]))
+  .setType(Accessor.Type.SCALAR)
+  .setBuffer(buffer);
+
+// Create an Extension attached to the Document.
+const batchExtension = document.createExtension(MeshGPUInstancing)
+  .setRequired(true);
+const batch = batchExtension.createInstancedMesh()
+  .setAttribute('TRANSLATION', batchPositions)
+  .setAttribute('_ID', batchIDs);
+
+node
+  .setMesh(mesh)
+  .setExtension('EXT_mesh_gpu_instancing', batch);
+```
+
+Standard instance attributes are `TRANSLATION`, `ROTATION`, and `SCALE`, and support the accessor
+types allowed by the extension specification. Custom instance attributes are allowed, and should
+be prefixed with an underscore (`_*`).
+
+</details>
+
 <details>
 <summary><b>EXT_texture_webp</b></summary>
 
@@ -438,7 +604,6 @@ JPEG image data.
 
 </details>
 
-
 ## Installation
 
 To use extensions, first install the `@gltf-transform/extensions` package:
@@ -473,13 +638,15 @@ installing dependencies:
 import { NodeIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
 
-import * as draco3d from 'draco3dgltf';
+import draco3d from 'draco3dgltf';
+
+// ...
 
 const io = new NodeIO()
   .registerExtensions(KHRONOS_EXTENSIONS)
   .registerDependencies({
-    'draco3d.decoder': draco3d.createDecoderModule(), // Optional.
-    'draco3d.encoder': draco3d.createEncoderModule(), // Optional.
+    'draco3d.decoder': await draco3d.createDecoderModule(), // Optional.
+    'draco3d.encoder': await draco3d.createEncoderModule(), // Optional.
   });
 
 const doc = io.read('compressed.glb');

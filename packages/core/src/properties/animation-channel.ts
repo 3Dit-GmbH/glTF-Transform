@@ -13,9 +13,10 @@ import { COPY_IDENTITY, Property } from './property';
  *
  * A _target_ is always a {@link Node}, in the core glTF spec. A _path_ is any property of that
  * Node that can be affected by animation: `translation`, `rotation`, `scale`, or `weights`. An
- * {@link Animation} affecting the positions and rotations of several {@link Node}s would contain one
- * channel for each Node-position or Node-rotation pair. The keyframe data for an AnimationChannel
- * is stored in an {@link AnimationSampler}, which must be attached to the same {@link Animation}.
+ * {@link Animation} affecting the positions and rotations of several {@link Node}s would contain
+ * one channel for each Node-position or Node-rotation pair. The keyframe data for an
+ * AnimationChannel is stored in an {@link AnimationSampler}, which must be attached to the same
+ * {@link Animation}.
  *
  * Usage:
  *
@@ -25,7 +26,7 @@ import { COPY_IDENTITY, Property } from './property';
  * 	.find((node) => node.getName() === 'Cog');
  *
  * const channel = doc.createAnimationChannel('cogRotation')
- * 	.setTargetPath(GLTF.AnimationChannelTargetPath.ROTATION)
+ * 	.setTargetPath('rotation')
  * 	.setTargetNode(node)
  * 	.setSampler(rotateSampler);
  * ```
@@ -35,9 +36,9 @@ import { COPY_IDENTITY, Property } from './property';
  */
 export class AnimationChannel extends Property {
 	public readonly propertyType = PropertyType.ANIMATION_CHANNEL;
-	private _targetPath: GLTF.AnimationChannelTargetPath = null;
-	@GraphChild private targetNode: Link<AnimationChannel, Node> = null;
-	@GraphChild private sampler: Link<AnimationChannel, AnimationSampler> = null;
+	private _targetPath: GLTF.AnimationChannelTargetPath | null = null;
+	@GraphChild private targetNode: Link<AnimationChannel, Node> | null = null;
+	@GraphChild private sampler: Link<AnimationChannel, AnimationSampler> | null = null;
 
 	public copy(other: this, resolve = COPY_IDENTITY): this {
 		super.copy(other, resolve);
@@ -50,11 +51,31 @@ export class AnimationChannel extends Property {
 		return this;
 	}
 
+	/**********************************************************************************************
+	 * Static.
+	 */
+
+	/** Name of the property to be modified by an animation channel. */
+	public static TargetPath: Record<string, GLTF.AnimationChannelTargetPath> = {
+		/** Channel targets {@link Node.setTranslation}. */
+		TRANSLATION: 'translation',
+		/** Channel targets {@link Node.setRotation}. */
+		ROTATION: 'rotation',
+		/** Channel targets {@link Node.setScale}. */
+		SCALE: 'scale',
+		/** Channel targets {@link Node.setWeights}, affecting {@link PrimitiveTarget} weights. */
+		WEIGHTS: 'weights',
+	}
+
+	/**********************************************************************************************
+	 * Properties.
+	 */
+
 	/**
 	 * Path (property) animated on the target {@link Node}. Supported values include:
 	 * `translation`, `rotation`, `scale`, or `weights`.
 	 */
-	public getTargetPath(): GLTF.AnimationChannelTargetPath {
+	public getTargetPath(): GLTF.AnimationChannelTargetPath | null {
 		return this._targetPath;
 	}
 
@@ -68,7 +89,7 @@ export class AnimationChannel extends Property {
 	}
 
 	/** Target {@link Node} animated by the channel. */
-	public getTargetNode(): Node {
+	public getTargetNode(): Node | null {
 		return this.targetNode ? this.targetNode.getChild() : null;
 	}
 
@@ -82,7 +103,7 @@ export class AnimationChannel extends Property {
 	 * Keyframe data input/output values for the channel. Must be attached to the same
 	 * {@link Animation}.
 	 */
-	public getSampler(): AnimationSampler {
+	public getSampler(): AnimationSampler | null {
 		return this.sampler ? this.sampler.getChild() : null;
 	}
 

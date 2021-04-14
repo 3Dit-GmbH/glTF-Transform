@@ -1,15 +1,14 @@
 require('source-map-support').install();
 
-import * as test from 'tape';
-import { Document, GLTF, NodeIO, Property, TextureInfo } from '../../';
-import { PlatformIO } from '../../dist/io/platform-io';
+import test from 'tape';
+import { Document, NodeIO, Property, TextureInfo } from '../../';
 
 test('@gltf-transform/core::material | properties', t => {
 	const doc = new Document();
 
 	const mat = doc.createMaterial('mat')
 		.setDoubleSided(true)
-		.setAlphaMode(GLTF.MaterialAlphaMode.MASK)
+		.setAlphaMode('MASK')
 		.setAlphaCutoff(0.33);
 
 	t.equal(mat.getDoubleSided(), true, 'doubleSided');
@@ -84,26 +83,54 @@ test('@gltf-transform/core::material | texture samplers', t => {
 	t.equal(mat.getBaseColorTextureInfo(), null, 'default baseColorTexture sampler');
 	t.equal(mat.getEmissiveTextureInfo(), null, 'default emissiveTexture sampler');
 	t.equal(mat.getNormalTextureInfo(), null, 'default normalTexture sampler');
-	t.equal(mat.getMetallicRoughnessTextureInfo(), null, 'default metallicRoughnessTexture sampler');
+	t.equal(mat.getMetallicRoughnessTextureInfo(), null, 'default metalRoughTexture sampler');
 	t.equal(mat.getOcclusionTextureInfo(), null, 'default occlusionTexture sampler');
 
 	mat.setBaseColorTexture(baseColor)
 		.getBaseColorTextureInfo()
-		.setWrapS(TextureInfo.TextureWrapMode.REPEAT)
-		.setWrapT(TextureInfo.TextureWrapMode.CLAMP_TO_EDGE);
+		.setWrapS(TextureInfo.WrapMode.REPEAT)
+		.setWrapT(TextureInfo.WrapMode.CLAMP_TO_EDGE);
 
 	mat.setEmissiveTexture(emissive)
 		.getEmissiveTextureInfo()
-		.setMinFilter(TextureInfo.TextureMinFilter.LINEAR)
-		.setMagFilter(TextureInfo.TextureMagFilter.NEAREST);
+		.setMinFilter(TextureInfo.MinFilter.LINEAR)
+		.setMagFilter(TextureInfo.MagFilter.NEAREST);
 
-	t.equal(mat.getBaseColorTextureInfo().getWrapS(), TextureInfo.TextureWrapMode.REPEAT, 'wrapS');
-	t.equal(mat.getBaseColorTextureInfo().getWrapT(), TextureInfo.TextureWrapMode.CLAMP_TO_EDGE, 'wrapT');
-	t.equal(mat.getEmissiveTextureInfo().getMinFilter(), TextureInfo.TextureMinFilter.LINEAR, 'minFilter');
-	t.equal(mat.getEmissiveTextureInfo().getMagFilter(), TextureInfo.TextureMinFilter.NEAREST, 'magFilter');
-	t.equal(mat.getNormalTextureInfo(), null, 'unchanged normalTexture sampler');
-	t.equal(mat.getMetallicRoughnessTextureInfo(), null, 'unchanged metallicRoughnessTexture sampler');
-	t.equal(mat.getOcclusionTextureInfo(), null, 'unchanged occlusionTexture sampler');
+	t.equal(
+		mat.getBaseColorTextureInfo().getWrapS(),
+		TextureInfo.WrapMode.REPEAT,
+		'wrapS'
+	);
+	t.equal(
+		mat.getBaseColorTextureInfo().getWrapT(),
+		TextureInfo.WrapMode.CLAMP_TO_EDGE,
+		'wrapT'
+	);
+	t.equal(
+		mat.getEmissiveTextureInfo().getMinFilter(),
+		TextureInfo.MinFilter.LINEAR,
+		'minFilter'
+	);
+	t.equal(
+		mat.getEmissiveTextureInfo().getMagFilter(),
+		TextureInfo.MinFilter.NEAREST,
+		'magFilter'
+	);
+	t.equal(
+		mat.getNormalTextureInfo(),
+		null,
+		'unchanged normalTexture sampler'
+	);
+	t.equal(
+		mat.getMetallicRoughnessTextureInfo(),
+		null,
+		'unchanged metallicRoughnessTexture sampler'
+	);
+	t.equal(
+		mat.getOcclusionTextureInfo(),
+		null,
+		'unchanged occlusionTexture sampler'
+	);
 	t.end();
 });
 
@@ -149,12 +176,12 @@ test('@gltf-transform/core::material | texture linking', t => {
 
 	mat.setBaseColorTexture(tex1);
 	t.equals(mat.getBaseColorTexture(), tex1, 'sets baseColorTexture');
-	t.deepEqual(tex1.listParents().map(toType), ['Root', 'Material'], 'links baseColorTexture')
+	t.deepEqual(tex1.listParents().map(toType), ['Root', 'Material'], 'links baseColorTexture');
 
 	mat.setNormalTexture(tex2);
 	t.equals(mat.getNormalTexture(), tex2, 'sets normalTexture');
-	t.deepEqual(tex1.listParents().map(toType), ['Root', 'Material'], 'links normalTexture')
-	t.deepEqual(tex2.listParents().map(toType), ['Root', 'Material'], 'links normalTexture')
+	t.deepEqual(tex1.listParents().map(toType), ['Root', 'Material'], 'links normalTexture');
+	t.deepEqual(tex2.listParents().map(toType), ['Root', 'Material'], 'links normalTexture');
 
 	mat.setBaseColorTexture(tex3);
 	t.equals(mat.getBaseColorTexture(), tex3, 'overwrites baseColorTexture');
@@ -205,7 +232,7 @@ test('@gltf-transform/core::material | copy', t => {
 	const doc = new Document();
 	const tex = doc.createTexture('MyTex');
 	const mat = doc.createMaterial('MyMat')
-		.setAlphaMode(GLTF.MaterialAlphaMode.BLEND)
+		.setAlphaMode('BLEND')
 		.setAlphaCutoff(0.5)
 		.setBaseColorFactor([1, 0, 1, 0.5])
 		.setBaseColorTexture(tex)
@@ -220,10 +247,10 @@ test('@gltf-transform/core::material | copy', t => {
 		.setEmissiveTexture(tex);
 	mat.getBaseColorTextureInfo()
 		.setTexCoord(2)
-		.setMagFilter(1)
-		.setMinFilter(2)
-		.setWrapS(3)
-		.setWrapT(4);
+		.setMagFilter(TextureInfo.MagFilter.LINEAR)
+		.setMinFilter(TextureInfo.MinFilter.NEAREST)
+		.setWrapS(TextureInfo.WrapMode.REPEAT)
+		.setWrapT(TextureInfo.WrapMode.MIRRORED_REPEAT);
 
 	const mat2 = doc.createMaterial().copy(mat);
 
@@ -244,10 +271,10 @@ test('@gltf-transform/core::material | copy', t => {
 
 	const textureInfo = mat2.getBaseColorTextureInfo();
 	t.equal(textureInfo.getTexCoord(), 2, 'copy texCoord');
-	t.equal(textureInfo.getMagFilter(), 1, 'magFilter');
-	t.equal(textureInfo.getMinFilter(), 2, 'minFilter');
-	t.equal(textureInfo.getWrapS(), 3, 'wrapS');
-	t.equal(textureInfo.getWrapT(), 4, 'wrapT');
+	t.equal(textureInfo.getMagFilter(), TextureInfo.MagFilter.LINEAR, 'magFilter');
+	t.equal(textureInfo.getMinFilter(), TextureInfo.MinFilter.NEAREST, 'minFilter');
+	t.equal(textureInfo.getWrapS(), TextureInfo.WrapMode.REPEAT, 'wrapS');
+	t.equal(textureInfo.getWrapT(), TextureInfo.WrapMode.MIRRORED_REPEAT, 'wrapT');
 
 	t.end();
 });

@@ -1,4 +1,21 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { spawnSync: _spawnSync } = require('child_process');
+
+import { sync as _commandExistsSync } from 'command-exists';
 import { Document, FileUtils, Logger, NodeIO, Transform } from '@gltf-transform/core';
+
+// Mock for tests.
+
+export let spawnSync = _spawnSync;
+export let commandExistsSync = _commandExistsSync;
+
+export function mockSpawnSync (_spawnSync: unknown): void {
+	spawnSync = _spawnSync;
+}
+
+export function mockCommandExistsSync (_commandExistsSync: (n: string) => boolean): void {
+	commandExistsSync = _commandExistsSync;
+}
 
 // Utilities.
 
@@ -33,10 +50,12 @@ export function formatHeader(title: string): string {
 /** Helper class for managing a CLI command session. */
 export class Session {
 	constructor (
-		private _io: NodeIO,
-		private _logger: Logger,
-		private _input: string,
-		private _output: string) {}
+			private _io: NodeIO,
+			private _logger: Logger,
+			private _input: string,
+			private _output: string) {
+		_io.setLogger(_logger);
+	}
 
 	public static create (io: NodeIO, logger: unknown, input: unknown, output: unknown): Session {
 		return new Session(io, logger as Logger, input as string, output as string);
@@ -51,10 +70,7 @@ export class Session {
 			.find((extension) => extension.extensionName === 'KHR_draco_mesh_compression');
 		if (dracoExtension) {
 			dracoExtension.dispose();
-			this._logger.warn(
-				'Skipping Draco recompression. To compress again — which will be lossy — manually'
-				+ ' reapply compression using the `draco` command.'
-			);
+			this._logger.warn('Decoding Draco compression. Further compression will be lossy.');
 		}
 
 		await doc.transform(...transforms);

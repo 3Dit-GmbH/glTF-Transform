@@ -2,11 +2,7 @@ import { COPY_IDENTITY, ExtensionProperty, PropertyType, vec3 } from '@gltf-tran
 import { ColorUtils } from '@gltf-transform/core';
 import { KHR_LIGHTS_PUNCTUAL } from '../constants';
 
-export enum LightType {
-	POINT = 'point',
-	SPOT = 'spot',
-	DIRECTIONAL = 'directional',
-}
+type PunctualLightType = 'point' | 'spot' | 'directional';
 
 /** Documentation in {@link EXTENSIONS.md}. */
 export class Light extends ExtensionProperty {
@@ -17,8 +13,8 @@ export class Light extends ExtensionProperty {
 
 	private _color: vec3 = [1, 1, 1];
 	private _intensity = 1;
-	private _type: LightType;
-	private _range: number = undefined;
+	private _type: PunctualLightType = Light.Type.POINT;
+	private _range: number | null = null;
 
 	private _innerConeAngle = 0;
 	private _outerConeAngle = Math.PI / 4;
@@ -35,6 +31,16 @@ export class Light extends ExtensionProperty {
 		this._outerConeAngle = other._outerConeAngle;
 
 		return this;
+	}
+
+	/**********************************************************************************************
+	 * STATIC.
+	 */
+
+	public static Type: Record<string, PunctualLightType> = {
+		POINT: 'point',
+		SPOT: 'spot',
+		DIRECTIONAL: 'directional',
 	}
 
 	/**********************************************************************************************
@@ -83,10 +89,10 @@ export class Light extends ExtensionProperty {
 	 */
 
 	/** Type. */
-	public getType(): LightType { return this._type; }
+	public getType(): PunctualLightType { return this._type; }
 
 	/** Type. */
-	public setType(type: LightType): this {
+	public setType(type: PunctualLightType): this {
 		this._type = type;
 		return this;
 	}
@@ -100,14 +106,14 @@ export class Light extends ExtensionProperty {
 	 * reached zero. Supported only for point and spot lights. Must be > 0. When undefined, range
 	 * is assumed to be infinite.
 	 */
-	public getRange(): number { return this._range; }
+	public getRange(): number | null { return this._range; }
 
 	/**
 	 * Hint defining a distance cutoff at which the light's intensity may be considered to have
 	 * reached zero. Supported only for point and spot lights. Must be > 0. When undefined, range
 	 * is assumed to be infinite.
 	 */
-	public setRange(range: number): this {
+	public setRange(range: number | null): this {
 		this._range = range;
 		return this;
 	}

@@ -3,7 +3,7 @@ require('source-map-support').install();
 const IS_NODEJS = typeof window === 'undefined';
 
 import { createCanvas } from 'canvas';
-import * as test from 'tape';
+import test from 'tape';
 import { BufferUtils, ImageUtils } from '../../';
 
 let fs, path;
@@ -44,7 +44,10 @@ test('@gltf-transform/core::image-utils | png', {skip: !IS_NODEJS}, t => {
 
 	t.deepEquals(ImageUtils.getSize(png, 'image/png'), [256, 256], 'png');
 	t.deepEquals(ImageUtils.getSize(fried, 'image/png'), [12, 12], 'png (fried)');
-	t.equals(ImageUtils.getChannels(png, 'image/png'), 4, 'png');
+	t.equals(ImageUtils.getChannels(png, 'image/png'), 4, 'png channels');
+	t.equals(ImageUtils.getChannels(fried, 'image/png'), 4, 'png channels');
+	t.equals(ImageUtils.getMemSize(png, 'image/png'), 349524, 'png gpu size');
+	t.equals(ImageUtils.getMemSize(fried, 'image/png'), 760, 'png gpu size');
 	t.end();
 });
 
@@ -53,8 +56,10 @@ test('@gltf-transform/core::image-utils | jpeg', {skip: !IS_NODEJS}, t => {
 	const buffer = new ArrayBuffer(100);
 	const view = new DataView(buffer);
 
-	t.deepEquals(ImageUtils.getSize(jpg, 'image/jpeg'), [256, 256], 'jpg');
-	t.equals(ImageUtils.getChannels(jpg, 'image/jpeg'), 3, 'jpg');
+	t.deepEquals(ImageUtils.getSize(jpg, 'image/jpeg'), [256, 256], 'jpg size');
+	t.equals(ImageUtils.getChannels(jpg, 'image/jpeg'), 3, 'jpg channels');
+	// See https://github.com/donmccurdy/glTF-Transform/issues/151.
+	t.equals(ImageUtils.getMemSize(jpg, 'image/jpeg'), 349524, 'jpg gpu size');
 
 	view.setUint16(4, 1000, false);
 	t.throws(() => ImageUtils.getSize(buffer, 'image/jpeg'), 'oob');
@@ -87,18 +92,18 @@ test('@gltf-transform/core::image-utils | webp', {skip: !IS_NODEJS}, t => {
 	t.deepEquals(ImageUtils.getSize(webpLossy, 'image/webp'), [256, 256], 'size (lossy)');
 	t.deepEquals(ImageUtils.getSize(webpLossless, 'image/webp'), [256, 256], 'size (lossless)');
 	t.equals(ImageUtils.getChannels(webpLossy, 'image/webp'), 4, 'channels');
-	t.equals(ImageUtils.getChannels(webpLossless, 'image/fake'), 4, 'channels (other)');
-	t.equals(ImageUtils.getMemSize(webpLossy, 'image/webp'), 256 * 256 * 4, 'memSize');
+	t.equals(ImageUtils.getChannels(webpLossless, 'image/fake'), null, 'channels (other)');
+	t.equals(ImageUtils.getMemSize(webpLossy, 'image/webp'), 349524, 'gpuSize');
 	t.end();
 });
 
 test('@gltf-transform/core::image-utils | ktx2', {skip: !IS_NODEJS}, t => {
 	const ktx2 = BufferUtils.trim(fs.readFileSync(path.join(__dirname, '..', 'in', 'test.ktx2')));
 
-	t.equals(ImageUtils.getSize(new ArrayBuffer(10), 'image/ktx2'), null, 'no size');
+	t.throws(() => ImageUtils.getSize(new ArrayBuffer(10), 'image/ktx2'), 'corrupt file');
 	t.deepEquals(ImageUtils.getSize(ktx2, 'image/ktx2'), [256, 256], 'size');
-	t.equals(ImageUtils.getChannels(ktx2, 'image/ktx2'), 4, 'channels');
-	t.equals(ImageUtils.getMemSize(ktx2, 'image/ktx2'), ktx2.byteLength, 'memSize');
+	t.equals(ImageUtils.getChannels(ktx2, 'image/ktx2'), 3, 'channels');
+	t.equals(ImageUtils.getMemSize(ktx2, 'image/ktx2'), 65536, 'gpuSize');
 	t.end();
 });
 

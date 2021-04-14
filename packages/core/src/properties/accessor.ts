@@ -19,39 +19,20 @@ import { COPY_IDENTITY } from './property';
  * `"VEC3"`, `"VEC4"`, `"MAT3"`, or `"MAT4"`. The element type can be determined with the
  * {@link getType}() method, and the number of elements in the accessor determine its
  * {@link getCount}(). The number of components in an element — e.g. 9 for `"MAT3"` — are its
- * {@link getElementSize}().
- *
- * | `type`     | Components |
- * |:----------:|:----------:|
- * | `"SCALAR"` | 1          |
- * | `"VEC2"`   | 2          |
- * | `"VEC3"`   | 3          |
- * | `"VEC4"`   | 4          |
- * | `"MAT2"`   | 4          |
- * | `"MAT3"`   | 9          |
- * | `"MAT4"`   | 16         |
+ * {@link getElementSize}(). See {@link Accessor.Type}.
  *
  * *Components* are the numeric values within an element — e.g. `.x` and `.y` for `"VEC2"`. Various
  * component types are available: `BYTE`, `UNSIGNED_BYTE`, `SHORT`, `UNSIGNED_SHORT`,
  * `UNSIGNED_INT`, and `FLOAT`. The component type can be determined with the
  * {@link getComponentType} method, and the number of bytes in each component determine its
- * {@link getComponentSize}. Component types are identified by WebGL enum values, below.
- *
- * | `componentType`         | Bytes |
- * |:-----------------------:|:-----:|
- * | `5120` (BYTE)           | 1     |
- * | `5121` (UNSIGNED_BYTE)  | 1     |
- * | `5122` (SHORT)          | 2     |
- * | `5123` (UNSIGNED_SHORT) | 2     |
- * | `5125` (UNSIGNED_INT)   | 4     |
- * | `5126` (FLOAT)          | 4     |
+ * {@link getComponentSize}. See {@link Accessor.ComponentType}.
  *
  * Usage:
  *
  * ```typescript
  * const accessor = doc.createAccessor('myData')
  * 	.setArray(new Float32Array([1,2,3,4,5,6,7,8,9,10,11,12]))
- * 	.setType(GLTF.AccessorType.VEC3)
+ * 	.setType(Accessor.Type.VEC3)
  * 	.setBuffer(doc.listBuffers()[0]);
  *
  * accessor.getCount();        // → 4
@@ -85,13 +66,13 @@ export class Accessor extends ExtensibleProperty {
 	public readonly propertyType = PropertyType.ACCESSOR;
 
 	/** @hidden Raw data of the accessor. */
-	private _array: TypedArray = null;
+	private _array: TypedArray | null = null;
 
 	/** @hidden Type of element represented. */
-	private _type: GLTF.AccessorType = GLTF.AccessorType.SCALAR;
+	private _type: GLTF.AccessorType = Accessor.Type.SCALAR;
 
 	/** @hidden Numeric type of each component in an element. */
-	private _componentType: GLTF.AccessorComponentType = null;
+	private _componentType: GLTF.AccessorComponentType = Accessor.ComponentType.FLOAT;
 
 	/** @hidden Whether data in the raw array should be considered normalized. */
 	private _normalized = false;
@@ -103,7 +84,7 @@ export class Accessor extends ExtensibleProperty {
 	private _out = MathUtils.identity;
 
 	/** @hidden The {@link Buffer} to which this accessor's data will be written. */
-	@GraphChild private buffer: Link<Accessor, Buffer> = null;
+	@GraphChild private buffer: Link<Accessor, Buffer> | null = null;
 
 	public copy(other: this, resolve = COPY_IDENTITY): this {
 		super.copy(other, resolve);
@@ -124,36 +105,68 @@ export class Accessor extends ExtensibleProperty {
 	 * Static.
 	 */
 
-	/** Supported element types. */
-	public static Type = {
-		SCALAR: GLTF.AccessorType.SCALAR,
-		VEC2: GLTF.AccessorType.VEC2,
-		VEC3: GLTF.AccessorType.VEC3,
-		VEC4: GLTF.AccessorType.VEC4,
-		MAT3: GLTF.AccessorType.MAT3,
-		MAT4: GLTF.AccessorType.MAT4,
+	/** Element type contained by the accessor (SCALAR, VEC2, ...). */
+	public static Type: Record<string, GLTF.AccessorType> = {
+		/** Scalar, having 1 value per element. */
+		SCALAR: 'SCALAR',
+		/** 2-component vector, having 2 components per element. */
+		VEC2: 'VEC2',
+		/** 3-component vector, having 3 components per element. */
+		VEC3: 'VEC3',
+		/** 4-component vector, having 4 components per element. */
+		VEC4: 'VEC4',
+		/** 2x2 matrix, having 4 components per element. */
+		MAT2: 'MAT2',
+		/** 3x3 matrix, having 9 components per element. */
+		MAT3: 'MAT3',
+		/** 4x3 matrix, having 16 components per element. */
+		MAT4: 'MAT4',
 	}
 
-	/** Supported component types. */
-	public static ComponentType = {
-		BYTE: GLTF.AccessorComponentType.BYTE,
-		UNSIGNED_BYTE: GLTF.AccessorComponentType.UNSIGNED_BYTE,
-		SHORT: GLTF.AccessorComponentType.SHORT,
-		UNSIGNED_SHORT: GLTF.AccessorComponentType.UNSIGNED_SHORT,
-		UNSIGNED_INT: GLTF.AccessorComponentType.UNSIGNED_INT,
-		FLOAT: GLTF.AccessorComponentType.FLOAT,
+	/** Data type of the values composing each element in the accessor. */
+	public static ComponentType: Record<string, GLTF.AccessorComponentType> = {
+		/**
+		 * 1-byte signed integer, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array Int8Array}.
+		 */
+		BYTE: 5120,
+		/**
+		 * 1-byte unsigned integer, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array Uint8Array}.
+		 */
+		UNSIGNED_BYTE: 5121,
+		/**
+		 * 2-byte signed integer, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array Uint16Array}.
+		 */
+		SHORT: 5122,
+		/**
+		 * 2-byte unsigned integer, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array Uint16Array}.
+		 */
+		UNSIGNED_SHORT: 5123,
+		/**
+		 * 4-byte unsigned integer, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array Uint32Array}.
+		 */
+		UNSIGNED_INT: 5125,
+		/**
+		 * 4-byte floating point number, stored as
+		 * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array Float32Array}.
+		 */
+		FLOAT: 5126,
 	}
 
 	/** Returns size of a given element type, in components. */
 	public static getElementSize(type: GLTF.AccessorType): number {
 		switch (type) {
-			case GLTF.AccessorType.SCALAR: return 1;
-			case GLTF.AccessorType.VEC2: return 2;
-			case GLTF.AccessorType.VEC3: return 3;
-			case GLTF.AccessorType.VEC4: return 4;
-			case GLTF.AccessorType.MAT2: return 4;
-			case GLTF.AccessorType.MAT3: return 9;
-			case GLTF.AccessorType.MAT4: return 16;
+			case Accessor.Type.SCALAR: return 1;
+			case Accessor.Type.VEC2: return 2;
+			case Accessor.Type.VEC3: return 3;
+			case Accessor.Type.VEC4: return 4;
+			case Accessor.Type.MAT2: return 4;
+			case Accessor.Type.MAT3: return 9;
+			case Accessor.Type.MAT4: return 16;
 			default:
 				throw new Error('Unexpected type: ' + type);
 		}
@@ -162,12 +175,12 @@ export class Accessor extends ExtensibleProperty {
 	/** Returns size of a given component type, in bytes. */
 	public static getComponentSize(componentType: GLTF.AccessorComponentType): number {
 		switch (componentType) {
-			case GLTF.AccessorComponentType.BYTE: return 1;
-			case GLTF.AccessorComponentType.UNSIGNED_BYTE: return 1;
-			case GLTF.AccessorComponentType.SHORT: return 2;
-			case GLTF.AccessorComponentType.UNSIGNED_SHORT: return 2;
-			case GLTF.AccessorComponentType.UNSIGNED_INT: return 4;
-			case GLTF.AccessorComponentType.FLOAT: return 4;
+			case Accessor.ComponentType.BYTE: return 1;
+			case Accessor.ComponentType.UNSIGNED_BYTE: return 1;
+			case Accessor.ComponentType.SHORT: return 2;
+			case Accessor.ComponentType.UNSIGNED_SHORT: return 2;
+			case Accessor.ComponentType.UNSIGNED_INT: return 4;
+			case Accessor.ComponentType.FLOAT: return 4;
 			default:
 				throw new Error('Unexpected component type: ' + componentType);
 		}
@@ -204,7 +217,7 @@ export class Accessor extends ExtensibleProperty {
 
 		for (let i = 0; i < count * elementSize; i += elementSize) {
 			for (let j = 0; j < elementSize; j++) {
-				const value = this._array[i + j];
+				const value = this._array![i + j];
 				if (Number.isFinite(value)) {
 					target[j] = Math.min(target[j], value);
 				}
@@ -241,7 +254,7 @@ export class Accessor extends ExtensibleProperty {
 
 		for (let i = 0; i < count * elementSize; i += elementSize) {
 			for (let j = 0; j < elementSize; j++) {
-				const value = this._array[i + j];
+				const value = this._array![i + j];
 				if (Number.isFinite(value)) {
 					target[j] = Math.max(target[j], value);
 				}
@@ -260,7 +273,7 @@ export class Accessor extends ExtensibleProperty {
 	 * will have a count of 10.
 	 */
 	public getCount(): number {
-		return this._array.length / this.getElementSize();
+		return this._array ? this._array.length / this.getElementSize() : 0;
 	}
 
 	/** Type of element stored in the accessor. `VEC2`, `VEC3`, etc. */
@@ -289,7 +302,7 @@ export class Accessor extends ExtensibleProperty {
 	 * `componentSize` of data backed by a `float32` array is 4 bytes.
 	 */
 	public getComponentSize(): number {
-		return this._array.BYTES_PER_ELEMENT;
+		return this._array!.BYTES_PER_ELEMENT;
 	}
 
 	/**
@@ -342,7 +355,7 @@ export class Accessor extends ExtensibleProperty {
 	 */
 	public getScalar(index: number): number {
 		const elementSize = this.getElementSize();
-		return this._out(this._array[index * elementSize]);
+		return this._out(this._array![index * elementSize]);
 	}
 
 	/**
@@ -350,7 +363,7 @@ export class Accessor extends ExtensibleProperty {
 	 * applicable.
 	 */
 	public setScalar(index: number, x: number): this {
-		this._array[index * this.getElementSize()] = this._in(x);
+		this._array![index * this.getElementSize()] = this._in(x);
 		return this;
 	}
 
@@ -361,7 +374,7 @@ export class Accessor extends ExtensibleProperty {
 	public getElement(index: number, target: number[]): number[] {
 		const elementSize = this.getElementSize();
 		for (let i = 0; i < elementSize; i++) {
-			target[i] = this._out(this._array[index * elementSize + i]);
+			target[i] = this._out(this._array![index * elementSize + i]);
 		}
 		return target;
 	}
@@ -373,7 +386,7 @@ export class Accessor extends ExtensibleProperty {
 	public setElement(index: number, value: number[]): this {
 		const elementSize = this.getElementSize();
 		for (let i = 0; i < elementSize; i++) {
-			this._array[index * elementSize + i] = this._in(value[i]);
+			this._array![index * elementSize + i] = this._in(value[i]);
 		}
 		return this;
 	}
@@ -383,7 +396,7 @@ export class Accessor extends ExtensibleProperty {
 	 */
 
 	/** Returns the {@link Buffer} into which this accessor will be organized. */
-	public getBuffer(): Buffer { return this.buffer ? this.buffer.getChild() : null; }
+	public getBuffer(): Buffer | null { return this.buffer ? this.buffer.getChild() : null; }
 
 	/** Assigns the {@link Buffer} into which this accessor will be organized. */
 	public setBuffer(buffer: Buffer): this {
@@ -392,40 +405,40 @@ export class Accessor extends ExtensibleProperty {
 	}
 
 	/** Returns the raw typed array underlying this accessor. */
-	public getArray(): TypedArray { return this._array; }
+	public getArray(): TypedArray | null { return this._array; }
 
 	/** Assigns the raw typed array underlying this accessor. */
 	public setArray(array: TypedArray): this {
-		this._componentType = arrayToComponentType(array);
+		this._componentType = array ? arrayToComponentType(array) : Accessor.ComponentType.FLOAT;
 		this._array = array;
 		return this;
 	}
 
 	/** Returns the total bytelength of this accessor, exclusive of padding. */
 	public getByteLength(): number {
-		return this._array.byteLength;
+		return this._array ? this._array.byteLength : 0;
 	}
 }
 
 /**************************************************************************************************
- * Array utilities.
+ * Accessor utilities.
  */
 
 /** @hidden */
 function arrayToComponentType(array: TypedArray): GLTF.AccessorComponentType {
 	switch (array.constructor) {
 		case Float32Array:
-			return GLTF.AccessorComponentType.FLOAT;
+			return Accessor.ComponentType.FLOAT;
 		case Uint32Array:
-			return GLTF.AccessorComponentType.UNSIGNED_INT;
+			return Accessor.ComponentType.UNSIGNED_INT;
 		case Uint16Array:
-			return GLTF.AccessorComponentType.UNSIGNED_SHORT;
+			return Accessor.ComponentType.UNSIGNED_SHORT;
 		case Uint8Array:
-			return GLTF.AccessorComponentType.UNSIGNED_BYTE;
+			return Accessor.ComponentType.UNSIGNED_BYTE;
 		case Int16Array:
-			return GLTF.AccessorComponentType.SHORT;
+			return Accessor.ComponentType.SHORT;
 		case Int8Array:
-			return GLTF.AccessorComponentType.BYTE;
+			return Accessor.ComponentType.BYTE;
 		default:
 			throw new Error('Unknown accessor componentType.');
 	}
