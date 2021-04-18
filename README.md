@@ -1,8 +1,3 @@
-# create an executable with node bundled
-1. `yarn install && yarn dist`
-1. `npx pkg -t node14-linux-x64 --out-path bin .` (pipeline uses **node14-linux-x64** -- other: `-t host`)
-1. `./bin/gltf-transform --help`
-
 # glTF-Transform
 
 [![Latest NPM release](https://img.shields.io/npm/v/@gltf-transform/core.svg)](https://www.npmjs.com/package/@gltf-transform/core)
@@ -30,6 +25,13 @@ To get started, head over to the [documentation](https://gltf-transform.donmccur
 <img src="https://gltf-transform.donmccurdy.com/media/kicker.jpg" alt="Function symbol, f(📦) → 📦, where the argument and output are a box labeled 'glTF'." width="40%">
 </p>
 
+# create an executable with node bundled
+1. `yarn install && yarn dist`
+1. `npx pkg -t node14-linux-x64 --out-path bin .` (pipeline uses **node14-linux-x64** -- other: `-t host`)
+1. `./bin/gltf-transform --help`
+
 ## License
 
 Copyright 2020, MIT License.
+
+
